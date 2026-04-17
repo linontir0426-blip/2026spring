@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>고려대학교 커뮤니티 지도 - 필터링 기능</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; font-family: 'Malgun Gothic', sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        
+        /* 상단 카테고리 필터 바 */
+        #filter-container {
+            position: absolute; top: 10px; left: 50px; z-index: 1000;
+            display: flex; gap: 5px; flex-wrap: wrap; max-width: 70%;
+        }
+        .filter-btn {
+            background: white; border: 2px solid #8b0029; color: #8b0029;
+            padding: 5px 12px; border-radius: 20px; cursor: pointer; font-weight: bold;
+        }
+        .filter-btn.active { background: #8b0029; color: white; }
+
+        .controls {
+            position: absolute; top: 10px; right: 10px; z-index: 1000;
+            background: white; padding: 15px; border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); width: 220px;
+        }
+        h3 { margin: 0 0 10px 0; color: #8b0029; font-size: 18px; }
+        button#save-btn { width: 100%; padding: 10px; background: #8b0029; color: white; border: none; cursor: pointer; margin-top: 10px; border-radius: 4px; font-weight: bold; }
+        input { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="filter-container">
+        <button class="filter-btn active" onclick="filterMarkers('전체')">전체</button>
+        </div>
+
+    <div class="controls">
+        <h3>고대 커뮤니티 맵</h3>
+        <p style="font-size:12px; color:#666;">지도를 클릭해 장소를 추가하세요!</p>
+        <div id="form" style="display:none;">
+            <input type="text" id="locName" placeholder="장소 이름">
+            <input type="text" id="locCat" placeholder="카테고리 (예: 스포츠, 카페)">
+            <button id="save-btn" onclick="saveToFirebase()">지도에 등록하기</button>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFUSlPVCRq6Wy6HtYhyd9VoyYptPTranI",
+            authDomain: "project-5810637681115030817.firebaseapp.com",
+            projectId: "project-5810637681115030817",
+            storageBucket: "project-5810637681115030817.firebasestorage.app",
+            messagingSenderId: "141913032269",
+            appId: "1:141913032269:web:4a959c0e2e27caa22b3e04",
+            measurementId: "G-34BE66V95W",
+            databaseURL: "https://project-5810637681115030817-default-rtdb.firebaseio.com" 
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const map = L.map('map').setView([37.5894, 127.0323], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        let tempLatlng = null;
+        let allMarkers = []; // 모든 마커 객체를 저장할 배열
+        let categories = new Set(); // 중복 없는 카테고리 목록
+
+        map.on('click', function(e) {
+            tempLatlng = e.latlng;
+            document.getElementById('form').style.display = 'block';
+        });
+
+        function saveToFirebase() {
+            const name = document.getElementById('locName').value;
+            const category = document.getElementById('locCat').value.trim();
+
+            if (name && category && tempLatlng) {
+                database.ref('markers').push({
+                    lat: tempLatlng.lat,
+                    lng: tempLatlng.lng,
+                    name: name,
+                    category: category
+                });
+                document.getElementById('form').style.display = 'none';
+                document.getElementById('locName').value = '';
+                document.getElementById('locCat').value = '';
+            }
+        }
+
+        // 실시간 데이터 읽기
+        database.ref('markers').on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            const marker = L.marker([data.lat, data.lng]);
+            marker.bindPopup(`<b>${data.name}</b><br>카테고리: ${data.category}`);
+            
+            // 지도에 일단 표시
+            marker.addTo(map);
+            
+            // 관리를 위해 배열에 저장
+            allMarkers.push({
+                instance: marker,
+                category: data.category
+            });
+
+            // 새로운 카테고리라면 버튼 추가
+            if (!categories.has(data.category)) {
+                categories.add(data.category);
+                addFilterButton(data.category);
+            }
+        });
+
+        // 카테고리 버튼 생성 함수
+        function addFilterButton(catName) {
+            const container = document.getElementById('filter-container');
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn';
+            btn.innerText = catName;
+            btn.onclick = function() {
+                // 버튼 활성화 스타일 변경
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                filterMarkers(catName);
+            };
+            container.appendChild(btn);
+        }
+
+        // 필터링 핵심 함수
+        function filterMarkers(selectedCat) {
+            allMarkers.forEach(item => {
+                if (selectedCat === '전체' || item.category === selectedCat) {
+                    map.addLayer(item.instance); // 지도에 보이기
+                } else {
+                    map.removeLayer(item.instance); // 지도에서 숨기기
+                }
+            });
+        }
+    </script>
+</body>
+</html>
