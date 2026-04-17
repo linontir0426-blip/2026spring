@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aesthetic Planner Pro + Custom Tools</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style id="theme-styles">
+        :root {
+            --bg: #f4f4f4; --card: #fff; --text: #333; --accent: #888;
+            --font: 'Segoe UI', sans-serif; --border: 1px solid #ddd;
+            --radius: 8px; --shadow: 0 4px 6px rgba(0,0,0,0.05);
+            --btn-txt: #fff; --case: none; --btn-font: inherit;
+        }
+
+        body {
+            background-color: var(--bg); color: var(--text);
+            font-family: var(--font); margin: 0; display: flex;
+            height: 100vh; transition: 0.3s ease; text-transform: var(--case);
+        }
+
+        nav {
+            width: 240px; background: var(--card); border-right: var(--border);
+            padding: 20px; display: flex; flex-direction: column; gap: 10px;
+        }
+        main {
+            flex: 1; padding: 25px; overflow-y: auto;
+            display: grid; grid-template-columns: 1fr 320px; gap: 25px;
+        }
+        .card {
+            background: var(--card); border: var(--border);
+            border-radius: var(--radius); padding: 20px;
+            box-shadow: var(--shadow); margin-bottom: 20px;
+        }
+
+        h1, h2, h3, h4 { color: var(--text); font-family: var(--btn-font); font-weight: 700; margin-top: 0;}
+        
+        .nav-item {
+            padding: 12px; cursor: pointer; border-radius: calc(var(--radius) / 2);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .nav-item.active { background: var(--accent) !important; color: var(--btn-txt) !important; font-family: var(--btn-font); }
+
+        .btn {
+            background: var(--accent); color: var(--btn-txt);
+            border: var(--border); border-radius: var(--radius);
+            padding: 10px 20px; cursor: pointer; font-family: var(--btn-font);
+            text-transform: var(--case); transition: 0.2s;
+        }
+        .btn:hover { opacity: 0.8; }
+
+        input, select {
+            padding: 10px; border: var(--border); border-radius: var(--radius);
+            background: var(--card); color: var(--text); font-family: var(--font);
+        }
+
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day {
+            padding: 15px 5px; border: var(--border); border-radius: var(--radius);
+            cursor: pointer; text-align: center; position: relative; transition: 0.2s;
+        }
+        .day:hover { background: rgba(128,128,128,0.1); }
+        .day.has-plan::after {
+            content: ''; position: absolute; bottom: 4px; left: 50%;
+            transform: translateX(-50%); width: 6px; height: 6px;
+            background: var(--accent); border-radius: 50%;
+        }
+
+        .habit-grid { display: grid; grid-template-columns: repeat(31, 1fr); gap: 3px; }
+        .habit-cell { width: 100%; aspect-ratio: 1; background: #eee; border-radius: 2px; cursor: pointer; }
+        .habit-cell.done { background: var(--accent) !important; }
+
+        .timer-display { font-size: 3.5rem; text-align: center; font-weight: bold; color: var(--accent); margin: 10px 0; }
+        .timer-input { width: 60px; text-align: center; font-size: 1.2rem; }
+
+        iframe { border-radius: var(--radius); border: var(--border); width: 100%; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <h1 style="color: var(--accent);">SerenePlan</h1>
+    <div class="nav-item active"><i class="fa-solid fa-gauge"></i> Dashboard</div>
+    <hr>
+    <div class="card" style="padding: 15px; box-shadow: none;">
+        <h4><i class="fa-solid fa-palette"></i> Aesthetic</h4>
+        <select id="styleSelect" onchange="applyAesthetic(this.value)" style="width: 100%;">
+            <option value="minimalist">Minimalist Mist</option>
+            <option value="retro">80s Retro Wave</option>
+            <option value="cyberpunk">Neon Cyberpunk</option>
+            <option value="cottagecore">Cottagecore Warmth</option>
+            <option value="darkacademia">Dark Academia</option>
+        </select>
+    </div>
+</nav>
+
+<main>
+    <section>
+        <div class="card">
+            <h3 class="js-text-header">Calendar</h3>
+            <p style="font-size: 0.8rem; opacity: 0.7;">Click a date to add/view plans</p>
+            <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <button class="btn js-text-prev" onclick="changeMonth(-1)"><</button>
+                <h2 id="monthDisplay">Month Year</h2>
+                <button class="btn js-text-next" onclick="changeMonth(1)">></button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <div class="card">
+            <h3 class="js-text-plans-header">Plans: <span id="selectedDateLabel">...</span></h3>
+            <div id="dayPlansList"></div>
+        </div>
+
+        <div class="card">
+            <h3 class="js-text-habit-header">Habit Tracker</h3>
+            <div class="habit-grid" id="habitGrid"></div>
+        </div>
+    </section>
+
+    <aside>
+        <div class="card" style="text-align: center;">
+            <h3 class="js-text-timer-header">Timer</h3>
+            <div style="margin-bottom: 10px;">
+                <input type="number" id="customMinutes" class="timer-input" value="25">
+                <span style="font-family: var(--btn-font);">MIN</span>
+            </div>
+            <div class="timer-display" id="timerDisplay">25:00</div>
+            <div style="display: flex; justify-content: center; gap: 5px;">
+                <button class="btn js-text-start" onclick="toggleTimer()">Start</button>
+                <button class="btn js-text-reset" style="background:#555" onclick="resetTimer()">Set</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="js-text-music-header">Relaxing Beats</h3>
+            <iframe src="https://open.spotify.com/embed/playlist/37i9dQZF1DWZqd5Jv9Iv51" height="152" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+        </div>
+    </aside>
+</main>
+
+<script>
+    const aesthetics = {
+        minimalist: {
+            bg: '#f8f9fa', card: '#ffffff', text: '#333', accent: '#a3b18a', font: "'Inter', sans-serif", border: '1px solid #e9ecef', radius: '12px', shadow: '0 2px 4px rgba(0,0,0,0.02)', btnTxt: '#fff', case: 'lowercase', btnFont: "'Inter', sans-serif",
+            textOverride: { header: "calendar", prev: "<-", next: "->", plansHeader: "plans for: ", habitHeader: "habits", timerHeader: "study time", start: "go", reset: "set", musicHeader: "beats"}
+        },
+        retro: {
+            bg: '#1a1a2e', card: '#16213e', text: '#fff', accent: '#e94560', font: "'Courier New', monospace", border: '2px solid #0f3460', radius: '0px', shadow: '4px 4px 0px #0f3460', btnTxt: '#fff', case: 'uppercase', btnFont: "'Press Start 2P', cursive",
+            textOverride: { header: "LOG_GRID", prev: "PREV", next: "NEXT", plansHeader: "DATA: ", habitHeader: "STATUS", timerHeader: "COUNTDOWN", start: "EXEC", reset: "LOAD", musicHeader: "AUDIO"}
+        },
+        cyberpunk: {
+            bg: '#000', card: '#0a0a0a', text: '#0ff', accent: '#f0f', font: "'Rajdhani', sans-serif", border: '1px solid #f0f', radius: '4px', shadow: '0 0 10px rgba(255,0,255,0.5)', btnTxt: '#000', case: 'none', btnFont: "'Orbitron', sans-serif",
+            textOverride: { header: "SYSTEM_CAL", prev: "<<", next: ">>", plansHeader: "NODES: ", habitHeader: "UPTIME", timerHeader: "CYCLE", start: "RUN", reset: "SYNC", musicHeader: "NEURAL"}
+        },
+        cottagecore: {
+            bg: '#fdfcf5', card: '#fffef0', text: '#5d4037', accent: '#8d6e63', font: "'Georgia', serif", border: '1px solid #d7ccc8', radius: '20px', shadow: '0 8px 15px rgba(141,110,99,0.1)', btnTxt: '#fff', case: 'none', btnFont: "'Palatino', serif",
+            textOverride: { header: "The Garden", prev: "Before", next: "After", plansHeader: "Seeds for: ", habitHeader: "Bloom", timerHeader: "Quiet Time", start: "Begin", reset: "Ready", musicHeader: "Melodies"}
+        },
+        darkacademia: {
+            bg: '#121212', card: '#1e1e1e', text: '#c7b299', accent: '#8c7851', font: "'Crimson Text', serif", border: '1px solid #333', radius: '2px', shadow: '0 4px 10px rgba(0,0,0,0.5)', btnTxt: '#121212', case: 'none', btnFont: "'Cinzel', serif",
+            textOverride: { header: "Chronicle", prev: "Prior", next: "Subsequent", plansHeader: "Notes: ", habitHeader: "Rituals", timerHeader: "The Hour", start: "Commence", reset: "Inscribe", musicHeader: "Classical"}
+        }
+    };
+
+    function applyAesthetic(themeKey) {
+        const theme = aesthetics[themeKey];
+        const root = document.documentElement.style;
+        localStorage.setItem('aesthetic', themeKey);
+        Object.keys(theme).forEach(key => { if(key !== 'textOverride') root.setProperty('--' + key.replace(/[A-Z]/g, m => "-" + m.toLowerCase()), theme[key]); });
+        const tm = theme.textOverride;
+        document.querySelector('.js-text-header').innerText = tm.header;
+        document.querySelector('.js-text-prev').innerText = tm.prev;
+        document.querySelector('.js-text-next').innerText = tm.next;
+        document.querySelector('.js-text-plans-header').innerHTML = `${tm.plansHeader}<span id="selectedDateLabel">${document.getElementById('selectedDateLabel').innerText}</span>`;
+        document.querySelector('.js-text-habit-header').innerText = tm.habitHeader;
+        document.querySelector('.js-text-timer-header').innerText = tm.timerHeader;
+        document.querySelector('.js-text-start').innerText = tm.start;
+        document.querySelector('.js-text-reset').innerText = tm.reset;
+        document.querySelector('.js-text-music-header').innerText = tm.musicHeader;
+    }
+
+    // Load Aesthetic Fonts
+    const fontLink = document.createElement('link');
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Cinzel&family=Crimson+Text&family=Inter:wght@400;700&family=Orbitron&family=Press+Start+2P&family=Rajdhani&display=swap';
+    fontLink.rel = 'stylesheet';
+    document.head.appendChild(fontLink);
+
+    let plans = JSON.parse(localStorage.getItem('plans')) || {};
+    let habits = JSON.parse(localStorage.getItem('habits')) || [];
+    let currentMonth = new Date();
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+        const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
+        document.getElementById('monthDisplay').innerText = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+        const firstDay = new Date(y, m, 1).getDay(), daysInMonth = new Date(y, m + 1, 0).getDate();
+        for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>';
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const hasPlan = plans[dateStr] && plans[dateStr].length > 0 ? 'has-plan' : '';
+            grid.innerHTML += `<div class="day ${hasPlan}" onclick="handleDateClick('${dateStr}')">${d}</div>`;
+        }
+    }
+
+    function handleDateClick(dateStr) {
+        showPlansForDate(dateStr);
+        const newPlan = prompt(`Add a plan for ${dateStr}:`);
+        if (newPlan) {
+            if (!plans[dateStr]) plans[dateStr] = [];
+            plans[dateStr].push(newPlan);
+            localStorage.setItem('plans', JSON.stringify(plans));
+            renderCalendar();
+            showPlansForDate(dateStr);
+        }
+    }
+
+    function showPlansForDate(dateStr) {
+        document.getElementById('selectedDateLabel').innerText = dateStr;
+        const list = document.getElementById('dayPlansList');
+        list.innerHTML = '';
+        if (plans[dateStr]) {
+            plans[dateStr].forEach((plan, index) => {
+                list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid rgba(128,128,128,0.2);"><span>• ${plan}</span><button style="background:none; border:none; color:red; cursor:pointer;" onclick="deletePlan('${dateStr}', ${index}); event.stopPropagation();">✕</button></div>`;
+            });
+        } else { list.innerHTML = '<p style="opacity:0.5; font-style:italic;">No plans yet.</p>'; }
+    }
+
+    function deletePlan(date, index) {
+        plans[date].splice(index, 1);
+        localStorage.setItem('plans', JSON.stringify(plans));
+        showPlansForDate(date);
+        renderCalendar();
+    }
+
+    function changeMonth(dir) { currentMonth.setMonth(currentMonth.getMonth() + dir); renderCalendar(); }
+    
+    function renderHabits() {
+        const grid = document.getElementById('habitGrid');
+        grid.innerHTML = '';
+        for (let i = 0; i < 372; i++) {
+            const div = document.createElement('div');
+            div.className = `habit-cell ${habits[i] ? 'done' : ''}`;
+            div.onclick = () => { habits[i] = !habits[i]; localStorage.setItem('habits', JSON.stringify(habits)); renderHabits(); };
+            grid.appendChild(div);
+        }
+    }
+
+    // Timer Logic
+    let timerId = null, timeLeft = 25 * 60;
+    function updateTimerText() {
+        const min = Math.floor(timeLeft / 60), sec = timeLeft % 60;
+        document.getElementById('timerDisplay').innerText = `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    }
+    function toggleTimer() {
+        if (timerId) { clearInterval(timerId); timerId = null; }
+        else {
+            timerId = setInterval(() => {
+                timeLeft--; updateTimerText();
+                if (timeLeft <= 0) { clearInterval(timerId); timerId = null; alert("Focus session complete!"); }
+            }, 1000);
+        }
+    }
+    function resetTimer() {
+        clearInterval(timerId); timerId = null;
+        const mins = document.getElementById('customMinutes').value;
+        timeLeft = (parseInt(mins) || 25) * 60;
+        updateTimerText();
+    }
+
+    const savedAesthetic = localStorage.getItem('aesthetic') || 'minimalist';
+    document.getElementById('styleSelect').value = savedAesthetic;
+    applyAesthetic(savedAesthetic);
+    renderCalendar();
+    renderHabits();
+</script>
+</body>
+</html>
