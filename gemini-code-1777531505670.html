@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Mood Tracker</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --card-bg: rgba(255, 255, 255, 0.8);
+            --text-color: #2d3436;
+            --accent-color: #6c5ce7;
+            --border-radius: 16px;
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            
+            /* Mood Colors */
+            --happy: #ffeaa7; --excited: #fab1a0; --calm: #55efc4;
+            --neutral: #dfe6e9; --tired: #a29bfe; --anxious: #d6303122;
+            --sad: #74b9ff; --angry: #ff7675;
+        }
+
+        [data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+            --card-bg: rgba(45, 52, 54, 0.9);
+            --text-color: #dfe6e9;
+            --accent-color: #a29bfe;
+        }
+
+        * { box-sizing: border-box; transition: all 0.3s ease; }
+        body {
+            margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient); color: var(--text-color);
+            min-height: 100vh; padding: 20px;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        
+        .card {
+            background: var(--card-bg); backdrop-filter: blur(8px);
+            border-radius: var(--border-radius); padding: 25px;
+            box-shadow: var(--shadow); margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        h1, h2, h3 { margin-top: 0; }
+
+        /* Mood Input Styles */
+        .mood-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+        .mood-btn {
+            background: white; border: 2px solid transparent; border-radius: 12px;
+            padding: 15px; font-size: 1.5rem; cursor: pointer; text-align: center;
+        }
+        .mood-btn:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+        .mood-btn.selected { border-color: var(--accent-color); background: var(--accent-color); color: white; }
+        
+        textarea {
+            width: 100%; border-radius: 8px; padding: 10px; border: 1px solid #ddd;
+            margin: 10px 0; height: 80px; resize: none;
+        }
+
+        .btn-save {
+            background: var(--accent-color); color: white; border: none;
+            padding: 12px 25px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold;
+        }
+
+        /* Calendar Styles */
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day-label { text-align: center; font-weight: bold; padding: 5px; opacity: 0.7; }
+        .day-cell {
+            min-height: 80px; background: rgba(255,255,255,0.3); border-radius: 8px;
+            padding: 5px; cursor: pointer; position: relative; border: 1px solid transparent;
+        }
+        .day-cell:hover { background: rgba(255,255,255,0.5); }
+        .day-cell.today { border: 2px solid var(--accent-color); }
+        .day-cell.has-entry { background: rgba(108, 92, 231, 0.1); }
+        .cell-date { font-size: 0.8rem; margin-bottom: 4px; }
+        .cell-emojis { display: flex; flex-wrap: wrap; gap: 2px; }
+
+        /* Stats Styles */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .stat-item { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 12px; text-align: center; }
+        .chart-container { margin-top: 20px; }
+        .bar-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .bar-label { width: 80px; font-size: 0.9rem; }
+        .bar-bg { flex-grow: 1; background: #eee; height: 12px; border-radius: 6px; overflow: hidden; }
+        .bar-fill { height: 100%; background: var(--accent-color); width: 0%; transition: width 1s ease-out; }
+
+        /* History Styles */
+        .history-list { max-height: 400px; overflow-y: auto; }
+        .history-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px; border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .history-info { display: flex; align-items: center; gap: 15px; }
+        .delete-btn { color: #ff7675; cursor: pointer; border: none; background: none; font-size: 1.2rem; }
+
+        .theme-toggle { cursor: pointer; padding: 8px 15px; border-radius: 20px; border: 1px solid var(--accent-color); background: transparent; color: var(--text-color); }
+
+        @media (max-width: 600px) {
+            .mood-options { grid-template-columns: repeat(4, 1fr); }
+            .calendar-grid { font-size: 0.8rem; }
+            .day-cell { min-height: 60px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Daily Mood Tracker</h1>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓 Toggle Mode</button>
+    </header>
+
+    <div class="card">
+        <h2>How are you feeling?</h2>
+        <input type="date" id="dateInput">
+        <div class="mood-options" id="moodButtons">
+            <button class="mood-btn" data-mood="Happy" data-score="2">😊</button>
+            <button class="mood-btn" data-mood="Excited" data-score="2">😍</button>
+            <button class="mood-btn" data-mood="Calm" data-score="1">😌</button>
+            <button class="mood-btn" data-mood="Neutral" data-score="0">😐</button>
+            <button class="mood-btn" data-mood="Tired" data-score="-1">😴</button>
+            <button class="mood-btn" data-mood="Anxious" data-score="-1">😰</button>
+            <button class="mood-btn" data-mood="Sad" data-score="-2">😢</button>
+            <button class="mood-btn" data-mood="Angry" data-score="-2">😡</button>
+        </div>
+        <textarea id="moodNote" placeholder="Why do you feel this way? (Optional)"></textarea>
+        <button class="btn-save" onclick="saveMood()">Save Mood Entry</button>
+    </div>
+
+    <div class="card">
+        <div class="calendar-header">
+            <button onclick="changeMonth(-1)">❮</button>
+            <h3 id="calendarMonthLabel">Month Year</h3>
+            <button onclick="changeMonth(1)">❯</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid">
+            <!-- JS populated -->
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Insights & Statistics</h2>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <small>Average Score</small>
+                <h2 id="statAvgScore">0</h2>
+            </div>
+            <div class="stat-item">
+                <small>Longest Streak</small>
+                <h2 id="statStreak">0 Days</h2>
+            </div>
+            <div class="stat-item">
+                <small>Dominant Mood</small>
+                <h2 id="statTopMood">-</h2>
+            </div>
+            <div class="stat-item">
+                <small>Trend</small>
+                <h2 id="statTrend">-</h2>
+            </div>
+        </div>
+        <div class="chart-container" id="moodDistribution">
+            <!-- JS populated bars -->
+        </div>
+        <p id="smartInsight" style="font-style: italic; text-align: center; margin-top: 20px;"></p>
+    </div>
+
+    <div class="card">
+        <h2>Recent History</h2>
+        <div class="history-list" id="historyList">
+            <!-- JS populated -->
+        </div>
+    </div>
+</div>
+
+<script>
+    let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
+    let currentViewDate = new Date();
+    let selectedMood = null;
+
+    const moodData = {
+        'Happy': { emoji: '😊', color: 'var(--happy)' },
+        'Excited': { emoji: '😍', color: 'var(--excited)' },
+        'Calm': { emoji: '😌', color: 'var(--calm)' },
+        'Neutral': { emoji: '😐', color: 'var(--neutral)' },
+        'Tired': { emoji: '😴', color: 'var(--tired)' },
+        'Anxious': { emoji: '😰', color: 'var(--anxious)' },
+        'Sad': { emoji: '😢', color: 'var(--sad)' },
+        'Angry': { emoji: '😡', color: 'var(--angry)' }
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('dateInput').valueAsDate = new Date();
+        setupMoodButtons();
+        renderAll();
+    });
+
+    function setupMoodButtons() {
+        document.querySelectorAll('.mood-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedMood = {
+                    name: btn.dataset.mood,
+                    score: parseInt(btn.dataset.score),
+                    emoji: btn.innerText
+                };
+            };
+        });
+    }
+
+    function saveMood() {
+        const date = document.getElementById('dateInput').value;
+        const note = document.getElementById('moodNote').value;
+
+        if (!selectedMood || !date) {
+            alert("Please select a mood and date!");
+            return;
+        }
+
+        const newEntry = {
+            id: Date.now(),
+            date,
+            mood: selectedMood.name,
+            emoji: selectedMood.emoji,
+            score: selectedMood.score,
+            note
+        };
+
+        entries.push(newEntry);
+        localStorage.setItem('moodEntries', JSON.stringify(entries));
+        
+        // Reset form
+        document.getElementById('moodNote').value = '';
+        renderAll();
+    }
+
+    function deleteEntry(id) {
+        entries = entries.filter(e => e.id !== id);
+        localStorage.setItem('moodEntries', JSON.stringify(entries));
+        renderAll();
+    }
+
+    function renderAll() {
+        renderCalendar();
+        renderHistory();
+        renderStats();
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const label = document.getElementById('calendarMonthLabel');
+        grid.innerHTML = '';
+        
+        const year = currentViewDate.getFullYear();
+        const month = currentViewDate.getMonth();
+        label.innerText = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentViewDate);
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const firstDay = new Date(year, month, 1).getDay();
+
+        const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        labels.forEach(l => grid.innerHTML += `<div class="day-label">${l}</div>`);
+
+        for (let i = 0; i < firstDay; i++) {
+            grid.innerHTML += `<div></div>`;
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dayEntries = entries.filter(e => e.date === dateStr);
+            const isToday = new Date().toISOString().split('T')[0] === dateStr;
+            
+            const cell = document.createElement('div');
+            cell.className = `day-cell ${isToday ? 'today' : ''} ${dayEntries.length ? 'has-entry' : ''}`;
+            cell.onclick = () => document.getElementById('dateInput').value = dateStr;
+            
+            let emojis = dayEntries.map(e => e.emoji).join('');
+            cell.innerHTML = `<div class="cell-date">${d}</div><div class="cell-emojis">${emojis}</div>`;
+            grid.appendChild(cell);
+        }
+    }
+
+    function changeMonth(offset) {
+        currentViewDate.setMonth(currentViewDate.getMonth() + offset);
+        renderCalendar();
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        list.innerHTML = '';
+        
+        [...entries].sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(e => {
+            list.innerHTML += `
+                <div class="history-item">
+                    <div class="history-info">
+                        <span style="font-size: 1.5rem">${e.emoji}</span>
+                        <div>
+                            <strong>${e.date}</strong><br>
+                            <small>${e.note || 'No note'}</small>
+                        </div>
+                    </div>
+                    <button class="delete-btn" onclick="deleteEntry(${e.id})">🗑</button>
+                </div>
+            `;
+        });
+    }
+
+    function renderStats() {
+        if (entries.length === 0) return;
+
+        // Avg Score
+        const avg = entries.reduce((acc, curr) => acc + curr.score, 0) / entries.length;
+        document.getElementById('statAvgScore').innerText = avg.toFixed(1);
+
+        // Top Mood
+        const counts = {};
+        entries.forEach(e => counts[e.mood] = (counts[e.mood] || 0) + 1);
+        const topMood = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+        document.getElementById('statTopMood').innerText = `${moodData[topMood].emoji} ${topMood}`;
+
+        // Distribution Chart
+        const distContainer = document.getElementById('moodDistribution');
+        distContainer.innerHTML = '<h3>Mood Distribution</h3>';
+        Object.keys(moodData).forEach(m => {
+            const count = counts[m] || 0;
+            const percent = (count / entries.length) * 100;
+            distContainer.innerHTML += `
+                <div class="bar-row">
+                    <div class="bar-label">${moodData[m].emoji} ${m}</div>
+                    <div class="bar-bg">
+                        <div class="bar-fill" style="width: ${percent}%; background-color: ${moodData[m].color}"></div>
+                    </div>
+                    <div style="width: 40px; text-align: right; font-size: 0.8rem">${Math.round(percent)}%</div>
+                </div>
+            `;
+        });
+
+        // Streak Calculation
+        let streak = 0;
+        const sortedDates = [...new Set(entries.map(e => e.date))].sort();
+        if(sortedDates.length > 0) {
+            let currentStreak = 1;
+            for(let i = 1; i < sortedDates.length; i++) {
+                const diff = (new Date(sortedDates[i]) - new Date(sortedDates[i-1])) / (1000 * 60 * 60 * 24);
+                if(diff === 1) currentStreak++;
+                else currentStreak = 1;
+                streak = Math.max(streak, currentStreak);
+            }
+        }
+        document.getElementById('statStreak').innerText = `${streak} Days`;
+
+        // Simple Trend
+        const recent = entries.slice(-5);
+        const trend = recent.length < 2 ? 'Stable' : (recent[recent.length-1].score > recent[0].score ? 'Improving 📈' : 'Declining 📉');
+        document.getElementById('statTrend').innerText = trend;
+
+        // Smart Insight
+        const weekends = entries.filter(e => {
+            const d = new Date(e.date).getDay();
+            return d === 0 || d === 6;
+        });
+        const weekdayAvg = (entries.length - weekends.length) > 0 ? "You're consistent during the week!" : "";
+        document.getElementById('smartInsight').innerText = weekends.length > 0 ? "✨ You tend to log more moods on weekends!" : "✨ Start logging daily to see deeper patterns!";
+    }
+
+    function toggleTheme() {
+        const theme = document.body.getAttribute('data-theme');
+        document.body.setAttribute('data-theme', theme === 'dark' ? 'light' : 'dark');
+    }
+</script>
+
+</body>
+</html>
