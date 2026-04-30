@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aesthetic Mood Tracker</title>
+    <style>
+        :root {
+            /* Light Mode Palette */
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --text-main: #2d3436;
+            --primary: #a29bfe;
+            --accent: #fd79a8;
+            --border: rgba(255, 255, 255, 0.3);
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            
+            /* Mood Colors */
+            --color-happy: #ffeaa7;
+            --color-sad: #74b9ff;
+            --color-angry: #ff7675;
+            --color-calm: #55efc4;
+            --color-anxious: #a29bfe;
+            --color-tired: #dfe6e9;
+            --color-excited: #fab1a0;
+            --color-neutral: #ced6e0;
+        }
+
+        [data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+            --card-bg: rgba(45, 52, 54, 0.9);
+            --text-main: #dfe6e9;
+            --border: rgba(255, 255, 255, 0.1);
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        * { box-sizing: border-box; transition: background 0.3s ease, color 0.3s ease; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 850px) { .container { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+        }
+
+        h1 { margin: 0; font-weight: 300; letter-spacing: 1px; color: var(--primary); }
+
+        /* Mood Buttons */
+        .mood-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .mood-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            padding: 10px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .mood-btn span { font-size: 0.7rem; color: var(--text-main); }
+        .mood-btn:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+        .mood-btn.active { background: var(--primary); border-color: transparent; }
+        .mood-btn.active span { color: white; }
+
+        /* Form Inputs */
+        input[type="date"], textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.1);
+            color: var(--text-main);
+            margin-bottom: 15px;
+            font-family: inherit;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-save:active { transform: scale(0.98); }
+
+        /* Calendar */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .calendar-day-head { font-weight: bold; text-align: center; font-size: 0.8rem; opacity: 0.6; }
+
+        .day-cell {
+            min-height: 65px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 5px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid transparent;
+        }
+
+        .day-cell:hover { background: rgba(255,255,255,0.2); }
+        .day-cell.has-entries { background: rgba(162, 155, 254, 0.15); }
+        .day-cell.today { border-color: var(--accent); color: var(--accent); font-weight: bold; }
+
+        .cell-emojis {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2px;
+            margin-top: 5px;
+        }
+
+        /* Stats & Charts */
+        .chart-container { margin-top: 20px; }
+        .bar-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        .bar-label { width: 80px; font-size: 0.8rem; }
+        .bar-track { flex: 1; height: 12px; background: rgba(0,0,0,0.05); border-radius: 6px; overflow: hidden; }
+        .bar-fill { height: 100%; background: var(--primary); width: 0; transition: width 1s ease-out; }
+
+        /* History */
+        .history-list { max-height: 500px; overflow-y: auto; padding-right: 5px; }
+        .history-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 5px solid var(--primary);
+        }
+
+        .history-content h4 { margin: 0 0 5px 0; font-size: 0.9rem; }
+        .history-content p { margin: 0; font-size: 0.85rem; opacity: 0.8; }
+        .btn-delete { color: #ff7675; cursor: pointer; background: none; border: none; font-size: 1.2rem; }
+
+        /* Dark Mode Toggle */
+        .theme-switch { cursor: pointer; font-size: 1.5rem; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Daily Mood Tracker</h1>
+        <div class="theme-switch" onclick="toggleTheme()">🌓</div>
+    </header>
+
+    <!-- Left: Input & Calendar -->
+    <section>
+        <div class="card">
+            <h2 style="margin:0">Add New Entry</h2>
+            <div class="mood-grid" id="moodPicker">
+                <button class="mood-btn" onclick="setMood('Happy', '😊')">😊 <span>Happy</span></button>
+                <button class="mood-btn" onclick="setMood('Neutral', '😐')">😐 <span>Neutral</span></button>
+                <button class="mood-btn" onclick="setMood('Sad', '😢')">😢 <span>Sad</span></button>
+                <button class="mood-btn" onclick="setMood('Angry', '😡')">😡 <span>Angry</span></button>
+                <button class="mood-btn" onclick="setMood('Tired', '😴')">😴 <span>Tired</span></button>
+                <button class="mood-btn" onclick="setMood('Excited', '😍')">😍 <span>Excited</span></button>
+                <button class="mood-btn" onclick="setMood('Anxious', '😰')">😰 <span>Anxious</span></button>
+                <button class="mood-btn" onclick="setMood('Calm', '😌')">😌 <span>Calm</span></button>
+            </div>
+            
+            <input type="date" id="entryDate">
+            <textarea id="entryNote" placeholder="Why do you feel this way?"></textarea>
+            <button class="btn-save" onclick="saveMood()">Save Mood ✨</button>
+        </div>
+
+        <div class="card">
+            <div class="calendar-header">
+                <button onclick="moveMonth(-1)">❮</button>
+                <h3 id="calendarTitle">Month Year</h3>
+                <button onclick="moveMonth(1)">❯</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- JS Generated -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Right: Stats & History -->
+    <section>
+        <div class="card">
+            <h2>Statistics</h2>
+            <div id="statsSummary" style="font-size: 0.9rem; line-height: 1.6;">
+                <!-- JS Generated -->
+            </div>
+            <div class="chart-container" id="chart">
+                <!-- JS Generated Bars -->
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>History</h2>
+            <div class="history-list" id="historyList">
+                <!-- JS Generated -->
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
+    let selectedMood = null;
+    let selectedEmoji = null;
+    let currentViewDate = new Date();
+
+    // Init
+    window.onload = () => {
+        document.getElementById('entryDate').valueAsDate = new Date();
+        renderAll();
+    };
+
+    function toggleTheme() {
+        const body = document.body;
+        const theme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        body.setAttribute('data-theme', theme);
+    }
+
+    function setMood(label, emoji) {
+        selectedMood = label;
+        selectedEmoji = emoji;
+        document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    function saveMood() {
+        const dateInput = document.getElementById('entryDate').value;
+        const noteInput = document.getElementById('entryNote').value;
+
+        if (!selectedMood || !dateInput) {
+            alert("Please select a mood and date!");
+            return;
+        }
+
+        const newEntry = {
+            id: Date.now(),
+            mood: selectedMood,
+            emoji: selectedEmoji,
+            date: dateInput,
+            note: noteInput,
+            timestamp: new Date(dateInput).getTime()
+        };
+
+        entries.push(newEntry);
+        localStorage.setItem('moodEntries', JSON.stringify(entries));
+        
+        // Reset Form
+        document.getElementById('entryNote').value = "";
+        selectedMood = null;
+        document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('active'));
+
+        renderAll();
+    }
+
+    function deleteEntry(id) {
+        entries = entries.filter(e => e.id !== id);
+        localStorage.setItem('moodEntries', JSON.stringify(entries));
+        renderAll();
+    }
+
+    function renderAll() {
+        renderCalendar();
+        renderHistory();
+        renderStats();
+    }
+
+    // CALENDAR LOGIC
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const title = document.getElementById('calendarTitle');
+        grid.innerHTML = "";
+
+        const month = currentViewDate.getMonth();
+        const year = currentViewDate.getFullYear();
+        title.innerText = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentViewDate);
+
+        // Headers
+        ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => {
+            const div = document.createElement('div');
+            div.className = 'calendar-day-head';
+            div.innerText = d;
+            grid.appendChild(div);
+        });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // Padding
+        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const dayEntries = entries.filter(e => e.date === dateStr);
+            
+            const cell = document.createElement('div');
+            cell.className = `day-cell ${dayEntries.length ? 'has-entries' : ''}`;
+            if(new Date().toISOString().split('T')[0] === dateStr) cell.classList.add('today');
+            
+            cell.innerHTML = `<div>${day}</div><div class="cell-emojis">${dayEntries.map(e => e.emoji).join('')}</div>`;
+            cell.onclick = () => {
+                document.getElementById('entryDate').value = dateStr;
+                cell.style.borderColor = 'var(--primary)';
+            };
+            grid.appendChild(cell);
+        }
+    }
+
+    function moveMonth(dir) {
+        currentViewDate.setMonth(currentViewDate.getMonth() + dir);
+        renderCalendar();
+    }
+
+    // HISTORY LOGIC
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        const sorted = [...entries].sort((a,b) => b.timestamp - a.timestamp);
+        
+        list.innerHTML = sorted.length ? "" : "<p style='text-align:center; opacity:0.5'>No entries yet.</p>";
+        
+        sorted.forEach(e => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.style.borderLeftColor = `var(--color-${e.mood.toLowerCase()})`;
+            item.innerHTML = `
+                <div class="history-content">
+                    <h4>${e.emoji} ${e.mood} — ${new Date(e.date).toLocaleDateString()}</h4>
+                    <p>${e.note || 'No description'}</p>
+                </div>
+                <button class="btn-delete" onclick="deleteEntry(${e.id})">×</button>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    // STATS LOGIC
+    function renderStats() {
+        const total = entries.length;
+        const moodCounts = {};
+        const moodPoints = { Happy: 2, Excited: 2, Calm: 1, Neutral: 0, Tired: -1, Anxious: -1, Sad: -2, Angry: -2 };
+
+        entries.forEach(e => {
+            moodCounts[e.mood] = (moodCounts[e.mood] || 0) + 1;
+        });
+
+        // Most frequent
+        let mostFrequent = "-";
+        let max = 0;
+        for(let m in moodCounts) {
+            if(moodCounts[m] > max) { max = moodCounts[m]; mostFrequent = m; }
+        }
+
+        document.getElementById('statsSummary').innerHTML = `
+            Total entries: <strong>${total}</strong><br>
+            Common vibe: <strong>${mostFrequent}</strong>
+        `;
+
+        // Render Bar Charts
+        const chart = document.getElementById('chart');
+        chart.innerHTML = "";
+        const labels = Object.keys(moodPoints);
+        
+        labels.forEach(l => {
+            const count = moodCounts[l] || 0;
+            const width = total === 0 ? 0 : (count / total) * 100;
+            chart.innerHTML += `
+                <div class="bar-row">
+                    <div class="bar-label">${l}</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${width}%; background:var(--color-${l.toLowerCase()})"></div></div>
+                    <div style="font-size:0.7rem">${count}</div>
+                </div>
+            `;
+        });
+    }
+</script>
+
+</body>
+</html>
