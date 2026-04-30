@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Study Planner</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --primary-color: #4a90e2;
+            --border-color: #eee;
+            --accent-soft: #eef2f7;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a202c;
+            --card-bg: #2d3748;
+            --text-color: #f7fafc;
+            --border-color: #4a5568;
+            --accent-soft: #3a4454;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            transition: background 0.3s ease;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto 20px;
+        }
+
+        /* Progress Tracker */
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto 30px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .progress-wrapper {
+            height: 10px;
+            background: var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* Grid Layout */
+        .planner-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .day-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            min-height: 150px;
+            border: 1px solid var(--border-color);
+        }
+
+        .day-card h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        /* Task Items */
+        .task-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: var(--accent-soft);
+            margin-bottom: 8px;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+
+        .task-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .completed span {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        /* Inputs */
+        .input-section {
+            max-width: 1200px;
+            margin: 20px auto;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"], select {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+            flex-grow: 1;
+        }
+
+        button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        .add-btn { background: var(--primary-color); color: white; }
+        .del-btn { background: transparent; color: #ff5f5f; font-size: 1.2rem; padding: 0 5px; }
+        .theme-btn { background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); }
+
+        button:hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>My Study Planner</h1>
+        <button class="theme-btn" onclick="toggleDarkMode()">🌓 Mode</button>
+    </div>
+
+    <div class="stats-container">
+        <div style="display: flex; justify-content: space-between; font-weight: bold;">
+            <span>Total Progress: <span id="progress-text">0%</span></span>
+            <span id="task-count">0/0 Tasks Done</span>
+        </div>
+        <div class="progress-wrapper">
+            <div id="progress-fill"></div>
+        </div>
+    </div>
+
+    <div class="input-section">
+        <input type="text" id="taskInput" placeholder="What do you need to study?">
+        <select id="daySelect">
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+            <option value="Sunday">Sunday</option>
+        </select>
+        <button class="add-btn" onclick="addTask()">Add Task</button>
+    </div>
+
+    <div class="planner-grid" id="plannerGrid">
+        <!-- Generated by JavaScript -->
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('studyTasksData')) || [];
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+        function init() {
+            const grid = document.getElementById('plannerGrid');
+            grid.innerHTML = days.map(day => `
+                <div class="day-card">
+                    <h3>${day}</h3>
+                    <div id="list-${day}"></div>
+                </div>
+            `).join('');
+            renderTasks();
+        }
+
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const day = document.getElementById('daySelect').value;
+
+            if (!input.value.trim()) return;
+
+            const newTask = {
+                id: Date.now(),
+                text: input.value,
+                day: day,
+                completed: false
+            };
+
+            tasks.push(newTask);
+            save();
+            input.value = "";
+        }
+
+        function renderTasks() {
+            // Clear existing lists
+            days.forEach(day => document.getElementById(`list-${day}`).innerHTML = "");
+
+            tasks.forEach(task => {
+                const list = document.getElementById(`list-${task.day}`);
+                const item = document.createElement('div');
+                item.className = `task-item ${task.completed ? 'completed' : ''}`;
+                item.innerHTML = `
+                    <div class="task-content">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id})">
+                        <span>${task.text}</span>
+                    </div>
+                    <button class="del-btn" onclick="deleteTask(${task.id})">×</button>
+                `;
+                list.appendChild(item);
+            });
+            updateStats();
+        }
+
+        function toggleTask(id) {
+            tasks = tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t);
+            save();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            save();
+        }
+
+        function save() {
+            localStorage.setItem('studyTasksData', JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        function updateStats() {
+            const total = tasks.length;
+            const done = tasks.filter(t => t.completed).length;
+            const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+
+            document.getElementById('progress-fill').style.width = percent + "%";
+            document.getElementById('progress-text').innerText = percent + "%";
+            document.getElementById('task-count').innerText = `${done}/${total} Tasks Done`;
+        }
+
+        function toggleDarkMode() {
+            const body = document.body;
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        }
+
+        init();
+    </script>
+</body>
+</html>
