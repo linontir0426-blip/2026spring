@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Study Planner</title>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --primary-color: #4a90e2;
+            --border-color: #eee;
+            --math: #4a90e2;
+            --english: #48bb78;
+            --economics: #ed8936;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a202c;
+            --card-bg: #2d3748;
+            --text-color: #f7fafc;
+            --border-color: #4a5568;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto 30px;
+        }
+
+        /* Progress Bar */
+        .stats-container {
+            max-width: 1200px;
+            margin: 0 auto 20px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .progress-wrapper {
+            height: 12px;
+            background: var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        #progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        /* Grid Layout */
+        .planner-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .day-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 15px;
+            min-height: 200px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+
+        .day-card h3 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        /* Task Items */
+        .task-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            background: var(--bg-color);
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .task-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tag {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .completed span {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        /* Controls */
+        .input-section {
+            max-width: 1200px;
+            margin: 20px auto;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input, select, button {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            outline: none;
+        }
+
+        button {
+            cursor: pointer;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+
+        .del-btn {
+            background: none;
+            color: #e53e3e;
+            padding: 2px 5px;
+            font-size: 0.8rem;
+        }
+
+        .dark-mode-btn {
+            background: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>My Study Planner</h1>
+        <button class="dark-mode-btn" onclick="toggleDarkMode()">🌓 Toggle Theme</button>
+    </div>
+
+    <div class="stats-container">
+        <div style="display: flex; justify-content: space-between;">
+            <span>Overall Progress: <strong id="progress-text">0%</strong></span>
+            <span>Tasks: <span id="task-count">0/0</span></span>
+        </div>
+        <div class="progress-wrapper">
+            <div id="progress-fill"></div>
+        </div>
+    </div>
+
+    <div class="input-section">
+        <input type="text" id="taskInput" placeholder="Enter study task...">
+        <select id="subjectSelect">
+            <option value="math">Math</option>
+            <option value="english">English</option>
+            <option value="economics">Economics</option>
+        </select>
+        <select id="daySelect">
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+            <option value="Saturday">Saturday</option>
+            <option value="Sunday">Sunday</option>
+        </select>
+        <button onclick="addTask()">Add Task</button>
+    </div>
+
+    <div class="planner-grid" id="plannerGrid">
+        <!-- Day cards will be generated here -->
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('studyTasks')) || [];
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        const subjectColors = { math: '#4a90e2', english: '#48bb78', economics: '#ed8936' };
+
+        // Initialize App
+        function init() {
+            renderGrid();
+            renderTasks();
+            updateStats();
+        }
+
+        // 1. Render the Empty Grid
+        function renderGrid() {
+            const grid = document.getElementById('plannerGrid');
+            grid.innerHTML = days.map(day => `
+                <div class="day-card" id="card-${day}">
+                    <h3>${day}</h3>
+                    <div class="task-list" id="list-${day}"></div>
+                </div>
+            `).join('');
+        }
+
+        // 2. Add Task
+        function addTask() {
+            const text = document.getElementById('taskInput').value;
+            const subject = document.getElementById('subjectSelect').value;
+            const day = document.getElementById('daySelect').value;
+
+            if (!text) return alert("Please enter a task!");
+
+            const newTask = {
+                id: Date.now(),
+                text,
+                subject,
+                day,
+                completed: false
+            };
+
+            tasks.push(newTask);
+            saveAndRefresh();
+            document.getElementById('taskInput').value = "";
+        }
+
+        // 3. Render Tasks from Array
+        function renderTasks() {
+            // Clear all lists first
+            days.forEach(day => document.getElementById(`list-${day}`).innerHTML = "");
+
+            tasks.forEach(task => {
+                const list = document.getElementById(`list-${task.day}`);
+                const taskEl = document.createElement('div');
+                taskEl.className = `task-item ${task.completed ? 'completed' : ''}`;
+                taskEl.innerHTML = `
+                    <div class="task-content">
+                        <div class="tag" style="background: ${subjectColors[task.subject]}"></div>
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleComplete(${task.id})">
+                        <span>${task.text}</span>
+                    </div>
+                    <button class="del-btn" onclick="deleteTask(${task.id})">✕</button>
+                `;
+                list.appendChild(taskEl);
+            });
+        }
+
+        // 4. Logic Functions
+        function toggleComplete(id) {
+            tasks = tasks.map(t => t.id === id ? {...t, completed: !t.completed} : t);
+            saveAndRefresh();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveAndRefresh();
+        }
+
+        function saveAndRefresh() {
+            localStorage.setItem('studyTasks', JSON.stringify(tasks));
+            renderTasks();
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = tasks.length;
+            const completed = tasks.filter(t => t.completed).length;
+            const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+            document.getElementById('progress-fill').style.width = percent + "%";
+            document.getElementById('progress-text').innerText = percent + "%";
+            document.getElementById('task-count').innerText = `${completed}/${total}`;
+        }
+
+        function toggleDarkMode() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            body.setAttribute('data-theme', currentTheme === 'dark' ? 'light' : 'dark');
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
