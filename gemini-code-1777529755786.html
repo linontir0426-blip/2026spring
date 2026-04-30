@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Study Planner</title>
+    <style>
+        /* CSS Styling */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #4a90e2;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 800px;
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #eef2f7;
+            color: #555;
+            width: 15%;
+        }
+
+        /* Task List Styles */
+        .task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .task-item input {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        /* Input Styles */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+
+        input[type="text"], select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 8px 15px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #357abd;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>My Study Planner</h1>
+
+    <div class="container">
+        <table id="plannerTable">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Tasks</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="Monday">
+                    <td>Monday</td>
+                    <td>
+                        <div class="task-list">
+                            <div class="task-item"><input type="checkbox" onclick="toggleTask(this)"> <span>Math: Algebra Exercises</span></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr id="Tuesday">
+                    <td>Tuesday</td>
+                    <td>
+                        <div class="task-list">
+                            <div class="task-item"><input type="checkbox" onclick="toggleTask(this)"> <span>English: Essay Draft</span></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr id="Wednesday">
+                    <td>Wednesday</td>
+                    <td><div class="task-list"></div></td>
+                </tr>
+                <tr id="Thursday">
+                    <td>Thursday</td>
+                    <td>
+                        <div class="task-list">
+                            <div class="task-item"><input type="checkbox" onclick="toggleTask(this)"> <span>Economics: Market Graphs</span></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr id="Friday">
+                    <td>Friday</td>
+                    <td><div class="task-list"></div></td>
+                </tr>
+                <tr id="Saturday">
+                    <td>Saturday</td>
+                    <td><div class="task-list"></div></td>
+                </tr>
+                <tr id="Sunday">
+                    <td>Sunday</td>
+                    <td><div class="task-list"></div></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Controls to add new tasks -->
+        <div class="controls">
+            <select id="daySelect">
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+            <input type="text" id="taskInput" placeholder="Enter new task...">
+            <button onclick="addTask()">Add Task</button>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript Functions
+
+        // Function to strike through text
+        function toggleTask(checkbox) {
+            const taskText = checkbox.nextElementSibling;
+            if (checkbox.checked) {
+                taskText.classList.add('completed');
+            } else {
+                taskText.classList.remove('completed');
+            }
+        }
+
+        // Function to add a new task to a specific day
+        function addTask() {
+            const dayId = document.getElementById('daySelect').value;
+            const taskText = document.getElementById('taskInput').value;
+            
+            if (taskText.trim() === "") {
+                alert("Please enter a task!");
+                return;
+            }
+
+            // Find the list within the correct row
+            const dayRow = document.getElementById(dayId);
+            const list = dayRow.querySelector('.task-list');
+
+            // Create new task elements
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'task-item';
+            
+            taskDiv.innerHTML = `
+                <input type="checkbox" onclick="toggleTask(this)">
+                <span>${taskText}</span>
+            `;
+
+            // Append to list and clear input
+            list.appendChild(taskDiv);
+            document.getElementById('taskInput').value = "";
+        }
+    </script>
+
+</body>
+</html>
