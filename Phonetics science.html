@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Study Guide: Phonetics and Acoustic Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --accent: #eff6ff;
+            --text-dark: #1e293b;
+            --text-light: #f8fafc;
+            --border: #e2e8f0;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: var(--text-dark);
+            line-height: 1.7;
+            scroll-behavior: smooth;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+            padding: 1rem 0;
+        }
+
+        .nav-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--secondary);
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--primary);
+        }
+
+        header {
+            padding: 8rem 1rem 4rem;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: var(--text-light);
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        main {
+            max-width: 1000px;
+            margin: 3rem auto;
+            padding: 0 1.5rem;
+        }
+
+        section {
+            margin-bottom: 5rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            color: var(--text-dark);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .section-title::after {
+            content: "";
+            flex-grow: 1;
+            height: 2px;
+            background: var(--border);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        .card h3 {
+            color: var(--primary);
+            margin-bottom: 1.2rem;
+            font-size: 1.4rem;
+            border-bottom: 2px solid var(--accent);
+            display: inline-block;
+        }
+
+        .highlight {
+            background-color: var(--accent);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        ul {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        li {
+            margin-bottom: 1rem;
+            position: relative;
+            padding-left: 1.8rem;
+        }
+
+        li::before {
+            content: "→";
+            color: var(--primary);
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .context-box {
+            background-color: #f8fafc;
+            border-left: 4px solid var(--secondary);
+            padding: 1rem;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+            font-style: italic;
+        }
+
+        footer {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: var(--secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+        }
+
+        @media (max-width: 768px) {
+            .nav-container { gap: 1rem; flex-wrap: wrap; }
+            header h1 { font-size: 1.8rem; }
+            .card { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-container">
+            <a href="#phonetics">Phonetics Taxonomy</a>
+            <a href="#vocal-tract">Articulatory Mechanics</a>
+            <a href="#acoustic-analysis">Acoustic Theory</a>
+            <a href="#vowel-space">Formants & Vowels</a>
+            <a href="#digital-signal">Digital Signal Processing</a>
+        </div>
+    </nav>
+
+    <header>
+        <h1>Phonetics & Speech Science: Comprehensive Guide</h1>
+        <p>A deep dive into the physiological production, physical transmission, and digital representation of human speech sounds.</p>
+    </header>
+
+    <main>
+        <!-- Section 1: Introduction to Phonetics -->
+        <section id="phonetics">
+            <h2 class="section-title">The Foundations of Phonetics</h2>
+            <div class="card">
+                <h3>Taxonomy of Speech Science</h3>
+                <p>Phonetics is defined as the physical study of speech sounds. It focuses on the concrete, measurable aspects of human communication rather than abstract systems. The field is traditionally divided into three distinct branches based on the "Speech Chain":</p>
+                
+                <ul>
+                    <li><span class="term"><strong>Articulatory Phonetics:</strong></span> The study of how the human vocal tract produces speech sounds. This is considered the most primitive and foundational branch, as it maps physical movements to sound outcomes.</li>
+                    <li><span class="term"><strong>Acoustic Phonetics:</strong></span> The analysis of the physical properties of speech as it transmits through the air in the form of sound waves.</li>
+                    <li><span class="term"><strong>Auditory Phonetics:</strong></span> The study of how the ear receives these sound waves and how the brain decodes them into meaningful units.</li>
+                </ul>
+
+                <div class="context-box">
+                    <strong>Historical Background:</strong> While early phonetics relied on visual observation of the articulators, modern phonetics utilizes advanced medical imaging (like MRI) and complex signal processing to analyze the "hidden" movements of the tongue and vocal folds.
+                </div>
+
+                <p>A key concept here is the <span class="highlight">Phoneme</span>: a temporary sound unit that we hear and interpret as a distinct signal in our mental lexicon.</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Articulatory Mechanics -->
+        <section id="vocal-tract">
+            <h2 class="section-title">Biological Mechanics of Production</h2>
+            <div class="card">
+                <h3>The Vocal Tract and Laryngeal Function</h3>
+                <p>Speech is the result of air being pushed from the lungs and manipulated by various <span class="highlight">Articulators</span> (or constrictors). The primary pathway for this air is the <strong>vocal tract</strong>, which includes the oral, nasal, and pharyngeal cavities.</p>
+
+                
+
+                <ul>
+                    <li><span class="term"><strong>The Epiglottis:</strong></span> A vital structure that acts as a valve, opening and closing during swallowing to protect the airway. In phonetics, we focus on the vocal folds located nearby; during the production of certain sounds, these folds may vibrate or "clasp" and release up to <span class="highlight">440 times per second</span>.</li>
+                    <li><span class="term"><strong>Voicing vs. Whispering:</strong></span> Voiced sounds (like vowels) occur when the vocal folds vibrate against each other. In contrast, during "whispering," the vocal folds are held apart so they do not vibrate, resulting in a turbulent, voiceless airflow.</li>
+                    <li><span class="term"><strong>Nasalization (ㄴ, ㅁ):</strong></span> These sounds are produced when the oral passage is blocked (e.g., by the lips for /m/ or tongue for /n/), but the nasal passage remains open, allowing air to escape through the nose.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 3: Acoustic Theory -->
+        <section id="acoustic-analysis">
+            <h2 class="section-title">Acoustic Analysis and Spectroscopy</h2>
+            <div class="card">
+                <h3>Pitch, Frequency, and Transformation</h3>
+                <p>Sound waves are complex, but they can be broken down into simpler components. The <span class="highlight">Sine Wave</span> represents the most basic shape of a sound wave.</p>
+                
+                
+
+                <div class="grid-container">
+                    <div>
+                        <p><strong>Frequency and Pitch:</strong></p>
+                        <ul>
+                            <li>Pitch is the perceptual correlate of frequency, measured in hertz (Hz).</li>
+                            <li>The unit for measuring how often the glottal structures close is the fundamental frequency ($f_0$).</li>
+                            <li>A "high" pitch corresponds to a greater number of vibrations per second.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p><strong>Signal Processing:</strong></p>
+                        <ul>
+                            <li><span class="term"><strong>Fast Fourier Transform (FFT):</strong></span> A mathematical algorithm used to identify specific frequency components in a sound.</li>
+                            <li><span class="term"><strong>Spectrogram:</strong></span> A visual representation that combines multiple frequency spectra over time. It shows energy (darkness) across frequency (y-axis) and time (x-axis).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Formants and Vowels -->
+        <section id="vowel-space">
+            <h2 class="section-title">The Vowel Space and Resonances</h2>
+            <div class="card">
+                <h3>The Source-Filter Model</h3>
+                <p>Vowel production is best understood through the <strong>Source-Filter Theory</strong>. The "Source" is the vocal fold vibration, while the "Filter" is the vocal tract above the larynx.</p>
+
+                <ul>
+                    <li>The physical specificity of the vocal tract determines its <span class="highlight">Resonance</span>—certain frequencies are amplified based on the shape of the oral cavity.</li>
+                    <li><span class="term"><strong>Formants:</strong></span> These are the resonant frequencies of the vocal tract, appearing as dark horizontal bands on a spectrogram. Usually, only F1 and F2 are required to identify a vowel.</li>
+                </ul>
+
+                <div class="context-box">
+                    <strong>F1 (First Formant):</strong> Corresponds inversely to vowel <strong>height</strong>. High vowels (like /i/) have a low F1.<br>
+                    <strong>F2 (Second Formant):</strong> Corresponds to vowel <strong>backness</strong>. Front vowels (like /i/) have a high F2.
+                </div>
+
+                <p><strong>The Schwa (/ə/):</strong> This vowel is produced with the most neutral, uniform tube-like configuration of the vocal tract. Its resonant frequencies are typically around 500Hz and 1500Hz.</p>
+            </div>
+        </section>
+
+        <!-- Section 5: Digital Signal Processing -->
+        <section id="digital-signal">
+            <h2 class="section-title">Digital Signal Processing (DSP)</h2>
+            <div class="card">
+                <h3>Digitizing the Human Voice</h3>
+                <p>To analyze speech on a computer, the analog sound pressure must be converted into digital data.</p>
+
+                
+
+                <ul>
+                    <li><span class="term"><strong>Sampling Rate:</strong></span> Measured in Hz, this defines how many snapshots of the sound wave are taken per second.</li>
+                    <li><span class="term"><strong>Bit Rate:</strong></span> Represents the total amount of digital information processed per second.</li>
+                    <li><span class="term"><strong>Standing Waves:</strong></span> Within the vocal tract, speech sounds are often the result of waves colliding with their own reflections. This interference creates "standing waves," which are the physical basis for resonance and formants.</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Advanced Phonetics Study Resource. Developed for exam preparation based on comprehensive class notes.</p>
+    </footer>
+
+    <script>
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                document.querySelector(targetId).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
