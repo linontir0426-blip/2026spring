@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waves, Linear Algebra, and Signal Processing</title>
+    <style>
+        :root {
+            --bg-dark: #0a0f1d;
+            --bg-card: rgba(16, 22, 42, 0.65);
+            --bg-card-hover: rgba(24, 34, 64, 0.8);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.3);
+            --secondary: #10b981;
+            --secondary-glow: rgba(16, 185, 129, 0.3);
+            --accent: #8b5cf6;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --sidebar-width: 280px;
+            --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+        }
+
+        body {
+            overflow-x: hidden;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Ambient Wave Background Component */
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -2;
+            pointer-events: none;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 0%, #131c35 0%, var(--bg-dark) 70%);
+        }
+
+        .ambient-bg canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.4;
+        }
+
+        /* Navigation Sidebar Layout */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background: rgba(7, 11, 22, 0.85);
+            backdrop-filter: blur(16px);
+            border-right: 1px solid var(--border-glass);
+            padding: 2rem 1.5rem;
+            overflow-y: auto;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .sidebar-brand h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .toc-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toc-item a {
+            display: flex;
+            align-items: center;
+            padding: 0.6rem 0.8rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.25s ease;
+            border-left: 2px solid transparent;
+        }
+
+        .toc-item a:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.03);
+            padding-left: 1rem;
+        }
+
+        .toc-item.active a {
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.08);
+            border-left-color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Main Workspace Container */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex-grow: 1;
+            padding: 3rem 4rem;
+            max-width: 1200px;
+            width: calc(100% - var(--sidebar-width));
+        }
+
+        /* Hero Dashboard Section */
+        .hero {
+            position: relative;
+            padding: 4rem 3rem;
+            background: linear-gradient(135deg, rgba(20, 30, 60, 0.6), rgba(10, 15, 30, 0.4));
+            border-radius: 24px;
+            border: 1px solid var(--border-glass);
+            backdrop-filter: blur(12px);
+            margin-bottom: 4rem;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-title {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff 40%, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 700px;
+            font-weight: 400;
+        }
+
+        /* Layout Block Structures */
+        .section-container {
+            margin-bottom: 2.5rem;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .section-container.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Glassmorphic Collapsible Accordion Element */
+        .interactive-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            overflow: hidden;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+        }
+
+        .interactive-card:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 1px 1px rgba(59, 130, 246, 0.1) inset;
+        }
+
+        .card-header {
+            padding: 1.75rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            background: linear-gradient(to right, rgba(255,255,255,0.01), transparent);
+            transition: background 0.2s ease;
+        }
+
+        .card-header:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .card-title-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .section-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+            transition: transform 0.3s ease;
+        }
+
+        .interactive-card:nth-of-type(even) .section-indicator {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+        }
+
+        .card-header h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .toggle-icon {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-glass);
+        }
+
+        .interactive-card.expanded .toggle-icon {
+            transform: rotate(180deg);
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .card-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-content {
+            padding: 0 2.5rem 2.5rem 2.5rem;
+            border-top: 1px solid transparent;
+            transition: border-color 0.5s;
+        }
+
+        .interactive-card.expanded .card-body {
+            max-height: 2500px; /* Highly clear max threshold bounds */
+        }
+
+        .interactive-card.expanded .card-content {
+            border-color: rgba(255, 255, 255, 0.04);
+        }
+
+        /* Typography & Core Content Elements */
+        p {
+            color: var(--text-muted);
+            margin-bottom: 1.25rem;
+            font-size: 1.05rem;
+            font-weight: 400;
+        }
+
+        strong {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .grid-two-col {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 2.5rem;
+            align-items: start;
+            margin-top: 1.5rem;
+        }
+
+        /* Informational Application Drawer Block */
+        .app-box {
+            margin-top: 2rem;
+            background: rgba(16, 185, 129, 0.04);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .app-box:hover {
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.06);
+        }
+
+        .app-header {
+            padding: 1rem 1.5rem;
+            background: rgba(16, 185, 129, 0.06);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .app-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .app-toggle {
+            font-size: 0.8rem;
+            color: var(--secondary);
+            transition: transform 0.3s;
+        }
+
+        .app-box.open .app-toggle {
+            transform: rotate(90deg);
+        }
+
+        .app-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .app-box.open .app-content {
+            max-height: 500px;
+        }
+
+        .app-body-inner {
+            padding: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .app-body-inner ul {
+            list-style-type: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .app-body-inner li {
+            position: relative;
+            padding-left: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        .app-body-inner li::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--secondary);
+            font-weight: bold;
+        }
+
+        .app-body-inner li strong {
+            color: var(--text-main);
+        }
+
+        /* Explicit Math Blocks Formatting Layout */
+        .math-block {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            font-family: var(--font-mono);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .math-expr {
+            font-size: 1.35rem;
+            color: #60a5fa;
+            letter-spacing: 0.02em;
+            text-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+            white-space: nowrap;
+        }
+
+        .math-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            position: absolute;
+            top: 0.5rem;
+            left: 0.75rem;
+        }
+
+        .explanation-list {
+            margin: 1rem 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .explanation-list li {
+            font-size: 0.95rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+
+        .variable-key {
+            font-family: var(--font-mono);
+            color: var(--accent);
+            font-weight: 600;
+            min-width: 25px;
+        }
+
+        /* Canvas and SVG Graphic Elements Containers */
+        .viz-container {
+            background: rgba(5, 7, 15, 0.4);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 1rem;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 4/3;
+        }
+
+        .viz-container canvas {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+        }
+
+        /* Mobile Utility Controls */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: rgba(7, 11, 22, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-glass);
+            z-index: 101;
+            padding: 0 1.5rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Responsive Breakpoints Rules */
+        @media (max-width: 1024px) {
+            .grid-two-col {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            .viz-container {
+                aspect-ratio: 16/9;
+                max-height: 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .mobile-header {
+                display: flex;
+            }
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                top: 60px;
+                height: calc(100vh - 60px);
+                width: 100%;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 5rem 1.5rem 2rem 1.5rem;
+            }
+            .hero {
+                padding: 2.5rem 1.5rem;
+                margin-bottom: 2rem;
+            }
+            .hero-title {
+                font-size: 2rem;
+            }
+            .card-header {
+                padding: 1.25rem 1.5rem;
+            }
+            .card-content {
+                padding: 0 1.5rem 1.5rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Wave Background Canvas Frame Container -->
+    <div class="ambient-bg">
+        <canvas id="bg-wave-canvas"></canvas>
+    </div>
+
+    <!-- Mobile Header Navigation Controls -->
+    <header class="mobile-header">
+        <div class="sidebar-brand">
+            <h2>WaveMath Core</h2>
+        </div>
+        <button class="menu-btn" id="sidebar-toggle-btn" aria-label="Toggle Navigation">&#9776;</button>
+    </header>
+
+    <!-- Navigation Interactive Content Sidebar -->
+    <nav class="sidebar" id="navigation-sidebar">
+        <div class="sidebar-brand">
+            <h2>WaveMath Engine</h2>
+        </div>
+        <ul class="toc-list">
+            <li class="toc-item active"><a href="#sync-mechanics">1. Wave Mechanics</a></li>
+            <li class="toc-item"><a href="#superposition-principle">2. Superposition</a></li>
+            <li class="toc-item"><a href="#fourier-analysis-section">3. Fourier Analysis</a></li>
+            <li class="toc-item"><a href="#light-prisms-section">4. Light &amp; Prisms</a></li>
+            <li class="toc-item"><a href="#scalars-vectors-section">5. Scalars &amp; Vectors</a></li>
+            <li class="toc-item"><a href="#matrices-transformations">6. Matrices</a></li>
+            <li class="toc-item"><a href="#linear-transformations-section">7. Linear Transforms</a></li>
+            <li class="toc-item"><a href="#dot-product-section">8. Dot Product</a></li>
+            <li class="toc-item"><a href="#cosine-values-section">9. Cosine Geometries</a></li>
+            <li class="toc-item"><a href="#projection-formula-section">10. Vector Projection</a></li>
+            <li class="toc-item"><a href="#cosine-similarity-section">11. Cosine Similarity</a></li>
+            <li class="toc-item"><a href="#infinite-vectors-section">12. Infinite Signals</a></li>
+            <li class="toc-item"><a href="#orthogonal-freqs-section">13. Orthogonal Freqs</a></li>
+        </ul>
+    </nav>
+
+    <!-- Primary Interactive Main Content Window -->
+    <main class="main-content">
+        
+        <!-- Dashboard Hero Workspace Element -->
+        <section class="hero">
+            <h1 class="hero-title">Waves, Linear Algebra, and Signal Processing</h1>
+            <p class="hero-subtitle">Understanding the mathematical foundations of modern technology, mapping the deep operational intersection between wave mechanics and high-dimensional space.</p>
+        </section>
+
+        <!-- Topic 1: Synchronization & Wave Mechanics -->
+        <section id="sync-mechanics" class="section-container">
+            <div class="interactive-card expanded">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Synchronization &amp; Wave Mechanics</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <div class="grid-two-col">
+                            <div>
+                                <p><strong>Synchronization</strong> describes the profound natural mechanism by which decoupled oscillating systems spontaneously adjust their operational rhythms to settle on a shared common frequency or stable phase locking condition. This phenomenon emerges via weak mutual interactions or systemic coupling pathways.</p>
+                                <p>Everyday structural and biological dynamics exhibit this behavior spontaneously, including coupled mechanical pendulums, synchronously firing populations of cardiac or neural pacemakers, coordinated atomic clocks, and locked synthetic radio transceiver networks.</p>
+                                <p><strong>Resonance</strong> represents a distinct but deeply related dynamic state where an external system induces another system to oscillate with a dramatically augmented amplitude. This occurs when the driver frequency closely matches or aligns with the native, intrinsic natural frequency of the target system.</p>
+                                <p>Fundamental periodic motion throughout the physical sciences is modeled cleanly using trigonometric sine and cosine functions, representing the smooth trajectory of rotational projections across time.</p>
+                            </div>
+                            <div class="viz-container">
+                                <canvas id="canvas-wave-mechanics"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="math-block">
+                            <span class="math-label">General Wave Equation</span>
+                            <div class="math-expr">y = A sin(ωt + φ)</div>
+                        </div>
+
+                        <p>To fully grasp the anatomy of periodic profiles, evaluate the individual variables defining this canonical waveform configuration:</p>
+                        <ul class="explanation-list">
+                            <li><span class="variable-key">A</span> <strong>Amplitude:</strong> The maximum displacement threshold measured from the equilibrium center line; dictates signal power or height.</li>
+                            <li><span class="variable-key">ω</span> <strong>Angular Frequency:</strong> The continuous rate of phase rotation computed over time, standardly defined as radians per single unit time interval.</li>
+                            <li><span class="variable-key">t</span> <strong>Time:</strong> The independent variable track recording temporal progression.</li>
+                            <li><span class="variable-key">φ</span> <strong>Phase Shift:</strong> The systemic horizontal translation offset defining the explicit physical alignment position of the wave at true zero time.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 2: Principle of Superposition -->
+        <section id="superposition-principle" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Principle of Superposition</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <div class="grid-two-col">
+                            <div>
+                                <p>The <strong>Principle of Superposition</strong> states that for all linear physical structures, the net operational response generated by multiple simultaneous inputs is simply the exact linear sum of the individual independent responses.</p>
+                                <p>Consequently, highly complex, arbitrary, or irregular signals can be represented as structured collections or linear combinations of simpler constituent sine and cosine wave components. This fundamental principle underpins the entirety of linear analysis and forms the logical bridge to Fourier processing.</p>
+                            </div>
+                            <div class="viz-container">
+                                <canvas id="canvas-superposition"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="app-box">
+                            <div class="app-header" onclick="toggleAppBox(this)">
+                                <span class="app-title">🌐 Ubiquitous Physical Implementations</span>
+                                <span class="app-toggle">&#9656;</span>
+                            </div>
+                            <div class="app-content">
+                                <div class="app-body-inner">
+                                    <ul>
+                                        <li><strong>Acoustic Fields:</strong> Complex orchestral signatures and human voices break down down to independent acoustic air pressure waves blending cleanly without altering individual frequencies.</li>
+                                        <li><strong>Electrical Power Systems:</strong> Complex AC distribution grids carry layered telemetry signals and transient loads simultaneously across single transmission paths.</li>
+                                        <li><strong>Radio &amp; Communications:</strong> Interleaved electromagnetic bands cross open air environments, maintaining discrete structural signals for individual transceivers.</li>
+                                        <li><strong>Optical Mechanics:</strong> Photonic wave packets intersect, producing intricate phase cancellation grids or interference arrays while preserving underlying wave identities.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 3: Fourier Analysis -->
+        <section id="fourier-analysis-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Fourier Analysis</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p><strong>Fourier Analysis</strong> serves as a fundamental mathematical framework that algorithmically decomposes complex, irregular, or periodic time-varying waveforms into distinct, ordered constituent frequency components. This structural decomposition converts a signal between complementary perspectives: the <strong>Time Domain</strong> and the <strong>Frequency Domain</strong>.</p>
+                        
+                        <p>The Time Domain tracks amplitude changes continuously over temporal progression ($t$). Conversely, the Frequency Domain strips away temporal progression to isolate the absolute distribution of discrete spectral components, mapping exactly how much signal energy exists within each isolated frequency band.</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Fourier Series Expansion</span>
+                            <div class="math-expr">f(t) = a₀ + ∑ [aₙ cos(nt) + bₙ sin(nt)]</div>
+                        </div>
+
+                        <p>Within this canonical definition, $a_0$ captures the continuous steady-state DC voltage or baseline mean offset, while the coefficients $a_n$ and $b_n$ act as amplitude weights for the corresponding harmonically linked cosine and sine bases.</p>
+
+                        <div class="app-box">
+                            <div class="app-header" onclick="toggleAppBox(this)">
+                                <span class="app-title">🚀 Modern Technological Applications</span>
+                                <span class="app-toggle">&#9656;</span>
+                            </div>
+                            <div class="app-content">
+                                <div class="app-body-inner">
+                                    <ul>
+                                        <li><strong>MP3 Audio Compression:</strong> Analyzes raw acoustic waves into frequency channels, using perceptual audio masking algorithms to strip away unhearable high frequencies to drastically lower data sizes.</li>
+                                        <li><strong>Magnetic Resonance Imaging (MRI):</strong> Captures raw radiofrequency signals emitted by hydrogen atoms inside strong magnetic field gradients, and maps them via Inverse Fourier transforms to construct anatomical spatial images.</li>
+                                        <li><strong>JPEG Image Compression:</strong> Applies discrete cosine transformations across discrete spatial pixel blocks, mapping continuous color steps into coarse spatial frequencies to strip out fine visual redundancy.</li>
+                                        <li><strong>Wireless Digital Communications:</strong> Distributes wide data payloads across parallel, independent sub-carrier waves via Orthogonal Frequency Division Multiplexing (OFDM), maximizing bandwidth across cellular and Wi-Fi networks.</li>
+                                        <li><strong>Speech Recognition Systems:</strong> Deconstructs audio waveforms into short-time spectral snapshots (spectrograms), enabling neural architectures to match acoustic vectors to phoneme vocabularies.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 4: Light and Prisms -->
+        <section id="light-prisms-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Light and Prisms</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <div class="grid-two-col">
+                            <div>
+                                <p>Incandescent white light is inherently polychromatic, containing a continuous superimposition of multiple distinct electromagnetic wavelengths. When a beam transitions through a refractive optical element like a glass <strong>prism</strong>, it undergoes structural dispersion, spreading outward into its constituent spectral bands.</p>
+                                <p>This clear separating behavior happens because the physical material presents a slightly altered refractive index for distinct energy wavelengths—a phenomenon called material dispersion. High-frequency short wavelengths refract more abruptly than long wavelengths when cross-passing material interfaces.</p>
+                                <p>The bounded <strong>visible spectrum</strong> maps clean human optical sensory limits, categorizing wavelengths smoothly across an index ranging from deep red (roughly 700 nanometers) up to short-wave violet (roughly 400 nanometers).</p>
+                            </div>
+                            <div class="viz-container">
+                                <svg width="100%" height="100%" viewBox="0 0 400 300" style="background:transparent;">
+                                    <!-- Prism -->
+                                    <polygon points="200,60 100,240 300,240" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
+                                    <!-- Incident Ray -->
+                                    <line x1="20" y1="180" x2="145" y2="160" stroke="#fff" stroke-width="3"/>
+                                    <!-- Refracted Rays inside and outside -->
+                                    <path d="M145,160 L240,150 L380,110" stroke="#ff4a4a" stroke-width="2" fill="none" opacity="0.9"/>
+                                    <path d="M145,160 L242,154 L380,140" stroke="#ffb74d" stroke-width="2" fill="none" opacity="0.9"/>
+                                    <path d="M145,160 L245,160 L380,170" stroke="#4caf50" stroke-width="2" fill="none" opacity="0.9"/>
+                                    <path d="M145,160 L248,166 L380,200" stroke="#2196f3" stroke-width="2" fill="none" opacity="0.9"/>
+                                    <path d="M145,160 L250,172 L380,230" stroke="#9c27b0" stroke-width="2" fill="none" opacity="0.9"/>
+                                    <text x="30" y="160" fill="#94a3b8" font-size="12">White Light</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 5: Scalars & Vectors -->
+        <section id="scalars-vectors-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Scalars &amp; Vectors</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <div class="grid-two-col">
+                            <div>
+                                <p>In foundational mathematics, <strong>Scalars</strong> represent simple 1D mathematical quantities entirely described by a single real numerical value tracking pure magnitude or scale. Classic scalar examples include thermodynamic temperature metrics, uniform mass indices, and standard real numbers.</p>
+                                <p>Conversely, <strong>Vectors</strong> are multidimensional geometric constructs that capture both a scale magnitude and an explicit direction in space. Geometrically, low-dimensional vectors are visualized as directed arrows pointing from an origin coordinate out to a destination node.</p>
+                                <p>Familiar physical vector examples include velocity vectors, directional force weights, and structural displacement paths.</p>
+                            </div>
+                            <div class="viz-container">
+                                <canvas id="canvas-vectors"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="math-block">
+                            <span class="math-label">Column Vector Notation</span>
+                            <div class="math-expr">v = [x &nbsp; y &nbsp; z]ᵀ</div>
+                        </div>
+
+                        <p>In modern computer science, vectors scale far beyond traditional three-dimensional physical structures into <strong>high-dimensional vector spaces</strong>. Within machine learning models, intricate files like long-form documents, raw pixel images, and rich audio logs are represented as dense numerical <strong>embeddings</strong> within spaces scaling across hundreds or thousands of dimensions, mapping hidden semantic features.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 6: Matrices -->
+        <section id="matrices-transformations" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Matrices</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>A <strong>Matrix</strong> is a structured rectangular grid of numbers that serves as a core framework for linear operations. Instead of acting as simple passive data tables, matrices represent active geometric instructions that map vector spaces onto new coordinate frames.</p>
+                        
+                        <p>These geometric instructions transform space in specific ways. Common operations include <strong>rotation</strong> around fixed pivots, uniform or directional <strong>stretching</strong>, spatial <strong>reflection</strong> across planar mirrors, and orthogonal <strong>projection</strong> down into lower-dimensional sub-spaces.</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Standard 2x2 Matrix Definition</span>
+                            <div class="math-expr">A = [ [1, 2], [3, 4] ]</div>
+                        </div>
+
+                        <p>When an operating system evaluates a transformation sequence, it implements a standard matrix-vector multiplication routine:</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Linear System Multiplication</span>
+                            <div class="math-expr">A x = y</div>
+                        </div>
+
+                        <p>Here, $x$ serves as the input vector, $A$ acts as the transforming operator matrix, and $y$ emerges as the newly derived output vector tracking its fresh transformed destination coordinates.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 7: Linear Transformations -->
+        <section id="linear-transformations-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Linear Transformations</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>A transformation function $T$ qualifies strictly as a <strong>Linear Transformation</strong> if and only if it completely preserves the foundational grid structures of addition and scalar scaling across vector spaces. This strict structural constraint means the vector origin point $(0,0,\dots,0)$ remains locked in place, and all parallel coordinate lines remain straight and evenly spaced post-transformation.</p>
+                        
+                        <p>Any valid linear mapping system must rigorously satisfy two primary algebraic rules simultaneously:</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Rule 1: Additivity (Homogeneity of Addition)</span>
+                            <div class="math-expr">T(u + v) = T(u) + T(v)</div>
+                        </div>
+
+                        <div class="math-block">
+                            <span class="math-label">Rule 2: Homogeneity of Scaling</span>
+                            <div class="math-expr">T(c v) = c T(v)</div>
+                        </div>
+
+                        <p>The first rule guarantees that transforming a summed vector returns the exact same result as independently transforming each vector first and then adding them together. The second rule ensures that scaling an input vector by a factor $c$ outputs a result that is scaled by that exact same scalar factor.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 8: Dot Product / Inner Product -->
+        <section id="dot-product-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Dot Product / Inner Product</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>The <strong>Dot Product</strong> (also termed the algebraic inner product) is a core operations routine that maps two separate equal-length numerical arrays down into a single scalar value. This operation provides an algebraic metric of the directional alignment or overlap between two vectors.</p>
+                        
+                        <p>From an algebraic perspective, it is computed by summing the products of the vectors' corresponding coordinates:</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Algebraic Evaluation Code</span>
+                            <div class="math-expr">a · b = a₁b₁ + a₂b₂ + ... + aₙbₙ</div>
+                        </div>
+
+                        <p>From a geometric perspective, it can be computed using the magnitudes of the vectors and the angle between them:</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Geometric Evaluation Formulation</span>
+                            <div class="math-expr">a · b = ||a|| ||b|| cos(θ)</div>
+                        </div>
+
+                        <p>This formulation underpins three vital geometric interpretations used across analytical computing:</p>
+                        <ul class="explanation-list">
+                            <li><strong>Directional Similarity:</strong> Measures how closely two vectors align; scales to large positive scores when vectors point in similar directions, and drops to negative numbers when they point in opposing directions.</li>
+                            <li><strong>Orthogonality:</strong> When two vectors meet at a perfectly perpendicular boundary ($\theta = 90^\circ$), their dot product drops cleanly to exactly zero, indicating complete structural independence.</li>
+                            <li><strong>Projection Interpretation:</strong> Computes the length of the shadow cast by one vector onto another, scaling with the target path's scale.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 9: Important Cosine Values -->
+        <section id="cosine-values-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Important Cosine Values</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>Because the geometric definition of the dot product relies directly on the cosine function, several milestone angles serve as critical geometric signposts for vector relationships:</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Collinear Trajectory (0 Degrees)</span>
+                            <div class="math-expr">cos(0°) = 1</div>
+                        </div>
+
+                        <div class="math-block">
+                            <span class="math-label">Perpendicular Matrix (90 Degrees)</span>
+                            <div class="math-expr">cos(90°) = 0</div>
+                        </div>
+
+                        <div class="math-block">
+                            <span class="math-label">Inverse Collinear Trajectory (180 Degrees)</span>
+                            <div class="math-expr">cos(180°) = -1</div>
+                        </div>
+
+                        <p>Geometrically, a value of $1$ indicates perfect parallel alignment, where the vectors point along the exact same path. A value of $0$ indicates orthogonal independence, meaning the vectors are completely perpendicular and share no common direction. A value of $-1$ signifies an anti-parallel relationship, where the vectors point in diametrically opposed directions.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 10: Projection Formula -->
+        <section id="projection-formula-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Projection Formula</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <div class="grid-two-col">
+                            <div>
+                                <p>The vector <strong>Projection</strong> formula computes the precise vector component of a vector $a$ that aligns directly along the directional axis of a target vector $b$. Intuitively, it maps out the exact geometric "shadow" that vector $a$ casts onto the infinite line spanned by vector $b$.</p>
+                                <p>This operation scales the target vector $b$ into a new vector pointing in the same direction, with a length that reflects how much of vector $a$ lies along that axis.</p>
+                            </div>
+                            <div class="viz-container">
+                                <canvas id="canvas-projection"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="math-block">
+                            <span class="math-label">Vector Projection Equation</span>
+                            <div class="math-expr">proj_b(a) = ( (a · b) / (||b||²) ) b</div>
+                        </div>
+
+                        <p>In this equation, the dot product $a \cdot b$ scales with the alignment of the two vectors, which is then normalized by dividing by the squared magnitude $||b||^2$. This yields a scalar scaling factor that stretches or shrinks the directional vector $b$ into its final projected vector form.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 11: Cosine Similarity -->
+        <section id="cosine-similarity-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Cosine Similarity</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p><strong>Cosine Similarity</strong> isolates the angular relationship between two vectors while ignoring their physical scales or magnitudes. This metric measures the directional alignment between two vectors, outputting a normalized score bounded strictly between $-1.0$ and $+1.0$.</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Cosine Similarity Formulation</span>
+                            <div class="math-expr">cos(θ) = (a · b) / (||a|| ||b||)</div>
+                        </div>
+
+                        <div class="app-box">
+                            <div class="app-header" onclick="toggleAppBox(this)">
+                                <span class="app-title">📊 High-Dimensional Machine Learning Footprint</span>
+                                <span class="app-toggle">&#9656;</span>
+                            </div>
+                            <div class="app-content">
+                                <div class="app-body-inner">
+                                    <ul>
+                                        <li><strong>Embedding Spaces Evaluation:</strong> Computes semantic similarity between high-dimensional text vectors generated by large language models, capturing structural meaning independently of word count.</li>
+                                        <li><strong>Recommendation Engines:</strong> Compares user profile vectors with product embedding vectors to serve tailored recommendations based on shared directional preferences.</li>
+                                        <li><strong>Semantic Search Indexing:</strong> Matches user queries with document knowledge pools by measuring vector closeness rather than relying on exact keyword matching.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 12: Signals as Infinite-Dimensional Vectors -->
+        <section id="infinite-vectors-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Signals as Infinite-Dimensional Vectors</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>A profound connection in modern engineering maps continuous time-varying signals directly into linear algebra as **infinite-dimensional vectors**. If a finite discrete vector lists distinct elements along individual coordinate axes, a continuous function $f(t)$ can be conceptualized as a vector containing an infinite sequence of values, where each independent time slice $t$ acts as a unique coordinate axis.</p>
+                        
+                        <p>Under this framework, the discrete vector dot product scales into a continuous calculus integral. This <strong>inner product</strong> integrates the product of two functions over a specific time window to quantify their net geometric overlap or similarity:</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Functional Inner Product Definite Integral</span>
+                            <div class="math-expr">⟨f, g⟩ = ∫ f(t) g(t) dt</div>
+                        </div>
+
+                        <p>If this integral evaluates to a high value, the two signals share a high structural similarity over that window. If the integral drops to zero, the signals are mathematically orthogonal, indicating they share no common components within that interval.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 13: Orthogonal Frequencies -->
+        <section id="orthogonal-freqs-section" class="section-container">
+            <div class="interactive-card">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <div class="card-title-area">
+                        <div class="section-indicator"></div>
+                        <h2>Orthogonal Frequencies</h2>
+                    </div>
+                    <span class="toggle-icon">&#9662;</span>
+                </div>
+                <div class="card-body">
+                    <div class="card-content">
+                        <p>When the inner product integral is evaluated using distinct trigonometric sine or cosine waveforms over a full periodic cycle from $0$ to $2\pi$, a remarkable property emerges:</p>
+
+                        <div class="math-block">
+                            <span class="math-label">Trigonometric Orthogonality Condition</span>
+                            <div class="math-expr">∫₀²π sin(nt) sin(mt) dt = 0 &nbsp; (for n ≠ m)</div>
+                        </div>
+
+                        <p>This equation proves that any two sine waves with different integer frequencies ($n \neq m$) have an inner product of exactly zero over a complete cycle. This absolute mathematical isolation is called <strong>frequency orthogonality</strong>, meaning these waveforms are completely perpendicular to one another within this functional space.</p>
+
+                        <div class="app-box">
+                            <div class="app-header" onclick="toggleAppBox(this)">
+                                <span class="app-title">📻 Communications Engineering Significance</span>
+                                <span class="app-toggle">&#9656;</span>
+                            </div>
+                            <div class="app-content">
+                                <div class="app-body-inner">
+                                    <p>This orthogonality property is the fundamental reason why different radio stations and Wi-Fi routers can transmit data through the same physical airspace simultaneously without destructive interference. Because each communication channel is modulated onto a distinct orthogonal frequency carrier, receiver circuits can isolate a specific station's signal using an inner product integration, which completely cancels out the energy from all other competing channels.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Client Interactive Logic Core Program Script -->
+    <script>
+        // Universal Animation Context State Tracker
+        const State = {
+            time: 0,
+            activeSectionId: ""
+        };
+
+        // Initialize Application Modules on Dom Readylink
+        document.addEventListener("DOMContentLoaded", () => {
+            initBackgroundWave();
+            initLocalCanvases();
+            initIntersectionObservers();
+            initMobileNavigation();
+        });
+
+        // 1. Ambient Background Wave Animation Engine
+        function initBackgroundWave() {
+            const canvas = document.getElementById("bg-wave-canvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener("resize", resize);
+            resize();
+
+            function animate() {
+                State.time += 0.005;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.strokeStyle = "rgba(59, 130, 246, 0.12)";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let x = 0; x < canvas.width; x += 5) {
+                    let y = canvas.height * 0.3 + Math.sin(x * 0.002 + State.time * 2) * 80 + Math.cos(x * 0.001 - State.time) * 40;
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                ctx.strokeStyle = "rgba(139, 92, 246, 0.08)";
+                ctx.beginPath();
+                for (let x = 0; x < canvas.width; x += 5) {
+                    let y = canvas.height * 0.6 + Math.sin(x * 0.0015 - State.time * 1.5) * 100 + Math.cos(x * 0.003 + State.time) * 30;
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // 2. Local Interactive Educational Canvases Initialization
+        function initLocalCanvases() {
+            initWaveMechanicsCanvas();
+            initSuperpositionCanvas();
+            initVectorsCanvas();
+            initProjectionCanvas();
+        }
+
+        function initWaveMechanicsCanvas() {
+            const canvas = document.getElementById("canvas-wave-mechanics");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            let localTime = 0;
+
+            function render() {
+                if (isElementHidden(canvas)) { requestAnimationFrame(render); return; }
+                fitToContainer(canvas);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                localTime += 0.03;
+
+                const midY = canvas.height / 2;
+                const width = canvas.width;
+
+                // Center line axis
+                ctx.strokeStyle = "rgba(255,255,255,0.1)";
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(width, midY); ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Sine Wave plotting trace
+                ctx.strokeStyle = "#3b82f6";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for (let x = 0; x < width; x++) {
+                    let angle = (x / width) * Math.PI * 4 + localTime;
+                    let y = midY + Math.sin(angle) * (canvas.height * 0.35);
+                    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        function initSuperpositionCanvas() {
+            const canvas = document.getElementById("canvas-superposition");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            let localTime = 0;
+
+            function render() {
+                if (isElementHidden(canvas)) { requestAnimationFrame(render); return; }
+                fitToContainer(canvas);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                localTime += 0.04;
+
+                const midY = canvas.height / 2;
+                const w = canvas.width;
+
+                ctx.lineWidth = 1.5;
+                // Wave component 1
+                ctx.strokeStyle = "rgba(59, 130, 246, 0.4)";
+                ctx.beginPath();
+                for(let x=0; x<w; x++){
+                    let y = midY + Math.sin((x/w)*Math.PI*4 + localTime)*30;
+                    if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                }
+                ctx.stroke();
+
+                // Wave component 2
+                ctx.strokeStyle = "rgba(139, 92, 246, 0.4)";
+                ctx.beginPath();
+                for(let x=0; x<w; x++){
+                    let y = midY + Math.sin((x/w)*Math.PI*10 - localTime*1.5)*15;
+                    if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                }
+                ctx.stroke();
+
+                // Summed Superposition Wave
+                ctx.strokeStyle = "#10b981";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for(let x=0; x<w; x++){
+                    let y1 = Math.sin((x/w)*Math.PI*4 + localTime)*30;
+                    let y2 = Math.sin((x/w)*Math.PI*10 - localTime*1.5)*15;
+                    if(x===0) ctx.moveTo(x, midY + y1 + y2); else ctx.lineTo(x, midY + y1 + y2);
+                }
+                ctx.stroke();
+
+                requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        function initVectorsCanvas() {
+            const canvas = document.getElementById("canvas-vectors");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            let localTime = 0;
+
+            function render() {
+                if (isElementHidden(canvas)) { requestAnimationFrame(render); return; }
+                fitToContainer(canvas);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                localTime += 0.02;
+
+                const origX = canvas.width * 0.2;
+                const origY = canvas.height * 0.8;
+                
+                // Axis markers
+                ctx.strokeStyle = "rgba(255,255,255,0.15)";
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(origX, 0); ctx.lineTo(origX, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, origY); ctx.lineTo(canvas.width, origY); ctx.stroke();
+
+                // Dynamic vector pointer
+                let vecX = origX + Math.cos(localTime)*120 + 40;
+                let vecY = origY - Math.abs(Math.sin(localTime*0.7)*100) - 20;
+
+                drawArrow(ctx, origX, origY, vecX, vecY, "#8b5cf6", 4);
+                requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        function initProjectionCanvas() {
+            const canvas = document.getElementById("canvas-projection");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            let angleTrack = 0;
+
+            function render() {
+                if (isElementHidden(canvas)) { requestAnimationFrame(render); return; }
+                fitToContainer(canvas);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                angleTrack += 0.015;
+
+                const oX = canvas.width * 0.2;
+                const oY = canvas.height * 0.8;
+
+                // Base Vector path target B
+                let bX = oX + 220;
+                let bY = oY - 60;
+                drawArrow(ctx, oX, oY, bX, bY, "rgba(255,255,255,0.4)", 3);
+                ctx.fillStyle = "#94a3b8";
+                ctx.fillText("Vector b", bX + 5, bY);
+
+                // Source Vector configuration path A
+                let aX = oX + 140 + Math.cos(angleTrack)*40;
+                let aY = oY - 130 + Math.sin(angleTrack)*30;
+                drawArrow(ctx, oX, oY, aX, aY, "#3b82f6", 3);
+                ctx.fillText("Vector a", aX - 10, aY - 10);
+
+                // Projection Math Computations
+                let ab_dot = (aX - oX)*(bX - oX) + (aY - oY)*(bY - oY);
+                let b_mag_sq = Math.pow(bX - oX, 2) + Math.pow(bY - oY, 2);
+                let scalar_proj = ab_dot / b_mag_sq;
+
+                let projX = oX + scalar_proj * (bX - oX);
+                let projY = oY + scalar_proj * (bY - oY);
+
+                // Perpendicular projection indicator line
+                ctx.strokeStyle = "rgba(16, 185, 129, 0.5)";
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath(); ctx.moveTo(aX, aY); ctx.lineTo(projX, projY); ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Projected output vector graphic representation
+                drawArrow(ctx, oX, oY, projX, projY, "#10b981", 4);
+                ctx.fillStyle = "#10b981";
+                ctx.fillText("proj_b(a)", projX - 10, projY + 20);
+
+                requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        // Helper Graphic Utilities
+        function drawArrow(ctx, fromx, fromy, tox, toy, color, width) {
+            let headlen = 12;
+            let dx = tox - fromx;
+            let dy = toy - fromy;
+            let angle = Math.atan2(dy, dx);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.moveTo(fromx, fromy);
+            ctx.lineTo(tox, toy);
+            ctx.stroke();
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.fill();
+        }
+
+        function fitToContainer(canvas) {
+            const width = canvas.parentElement.clientWidth;
+            const height = canvas.parentElement.clientHeight;
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+            }
+        }
+
+        function isElementHidden(el) {
+            return (el.offsetParent === null);
+        }
+
+        // 3. Accordion Expand/Collapse Toggle Logic Actions
+        function toggleCard(headerElement) {
+            const card = headerElement.parentElement;
+            card.classList.toggle("expanded");
+        }
+
+        function toggleAppBox(headerElement) {
+            const box = headerElement.parentElement;
+            box.classList.toggle("open");
+        }
+
+        // 4. Scroll Tracking Intersection Observers Implementation
+        function initIntersectionObservers() {
+            const sections = document.querySelectorAll(".section-container");
+            const tocItems = document.querySelectorAll(".toc-item");
+
+            const options = {
+                root: null,
+                rootMargin: "-20% 0px -60% 0px",
+                threshold: 0
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("visible");
+                        const id = entry.target.getAttribute("id");
+                        
+                        tocItems.forEach(item => {
+                            const link = item.querySelector("a");
+                            if (link && link.getAttribute("href") === `#${id}`) {
+                                item.classList.add("active");
+                                item.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            } else {
+                                item.classList.remove("active");
+                            }
+                        });
+                    }
+                });
+            }, options);
+
+            sections.forEach(sec => observer.observe(sec));
+
+            // Force initial activation trigger for scrolling animations base
+            setTimeout(() => {
+                if(sections.length > 0) sections[0].classList.add("visible");
+            }, 100);
+        }
+
+        // 5. Mobile Navigation Sidebar Drawer Automation Layout
+        function initMobileNavigation() {
+            const toggleBtn = document.getElementById("sidebar-toggle-btn");
+            const sidebar = document.getElementById("navigation-sidebar");
+            
+            if(!toggleBtn || !sidebar) return;
+
+            toggleBtn.addEventListener("click", (e) => {
+                sidebar.classList.toggle("open");
+                e.stopPropagation();
+            });
+
+            // Close sidebar automatically on link select action execution
+            const sidebarLinks = sidebar.querySelectorAll(".toc-item a");
+            sidebarLinks.forEach(link => {
+                link.addEventListener("click", () => {
+                    sidebar.classList.remove("open");
+                });
+            });
+
+            document.addEventListener("click", (e) => {
+                if(window.innerWidth <= 768 && !sidebar.contains(e.target) && e.target !== toggleBtn) {
+                    sidebar.classList.remove("open");
+                }
+            });
+        }
+    </script>
+</body>
+</html>
