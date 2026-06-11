@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Mood Tracker & Productivity Hub</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --primary: #4a90e2;
+            --border: #ddd;
+            --shadow: 0 4px 15px rgba(0,0,0,0.1);
+            
+            /* Mood Colors */
+            --happy: #ffeb3b;
+            --excited: #ff9800;
+            --calm: #8bc34a;
+            --neutral: #9e9e9e;
+            --tired: #795548;
+            --anxious: #9c27b0;
+            --sad: #2196f3;
+            --angry: #f44336;
+
+            /* Priority Colors */
+            --priority-high: #ffdde0;
+            --priority-high-text: #c62828;
+            --priority-medium: #fff3cd;
+            --priority-medium-text: #856404;
+            --priority-low: #d4edda;
+            --priority-low-text: #155724;
+        }
+
+        body.dark {
+            --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --card-bg: #1f1f2e;
+            --text-main: #e0e0e0;
+            --border: #444;
+            --shadow: 0 4px 15px rgba(0,0,0,0.5);
+            
+            --priority-high: #5c2529;
+            --priority-high-text: #ff8a80;
+            --priority-medium: #53451d;
+            --priority-medium-text: #ffd54f;
+            --priority-low: #204229;
+            --priority-low-text: #81c784;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            transition: background 0.3s;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        /* View Navigation Tabs Style */
+        .view-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .nav-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: var(--shadow);
+            transition: 0.2s ease;
+        }
+        .nav-tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .app-view { display: none; }
+        .app-view.active { display: block; }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        /* Mood Input */
+        .mood-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .mood-btn {
+            border: 2px solid transparent;
+            background: #f0f0f0;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.2s;
+        }
+        body.dark .mood-btn { background: #2b2b3a; color: inherit; }
+
+        .mood-btn:hover { transform: translateY(-2px); }
+        .mood-btn.selected { border-color: var(--primary); background: #e3f2fd; }
+        body.dark .mood-btn.selected { background: #16213e; }
+        .mood-btn span { display: block; font-size: 1.5rem; }
+
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: inherit;
+        }
+
+        button.primary-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        /* Calendar */
+        .cal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .cal-day-label { text-align: center; font-weight: bold; padding: 5px; }
+        .cal-cell {
+            min-height: 80px;
+            border: 1px solid var(--border);
+            padding: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .cal-cell:hover { background: rgba(0,0,0,0.05); }
+        body.dark .cal-cell:hover { background: rgba(255,255,255,0.05); }
+        .cal-cell.today { border: 2px solid var(--primary); }
+        .cal-cell.has-entry { background: rgba(74, 144, 226, 0.1); }
+        .cal-cell .day-num { font-size: 0.8rem; font-weight: bold; }
+        .cal-moods { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 5px; }
+
+        /* Stats & History */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .stat-item { padding: 15px; border: 1px solid var(--border); border-radius: 8px; text-align: center; }
+        .stat-val { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+
+        .chart-container { height: 150px; display: flex; align-items: flex-end; gap: 10px; margin-top: 20px; border-bottom: 2px solid var(--border); }
+        .chart-bar { flex: 1; background: var(--primary); border-radius: 4px 4px 0 0; position: relative; min-width: 20px; }
+        .chart-label { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            gap: 15px;
+        }
+        .history-item:last-child { border: none; }
+        .del-btn { color: var(--angry); cursor: pointer; border: none; background: none; font-size: 1.2rem; }
+
+        .dark-toggle { cursor: pointer; font-size: 1.5rem; background: none; border: none; }
+
+        /* Weather Styles */
+        .weather-info-bar { font-size: 0.85rem; color: var(--primary); font-style: italic; margin-bottom: 10px; }
+        .history-weather-badge { font-size: 0.8rem; background: rgba(74, 144, 226, 0.15); padding: 2px 6px; border-radius: 4px; margin-left: 8px; white-space: nowrap; }
+
+        /* Task Sub-tabs & Management Styles */
+        .todo-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        @media (max-width: 768px) { .todo-grid { grid-template-columns: 1fr; } }
+        
+        .task-subtabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+        .subtab { padding: 6px 12px; cursor: pointer; font-size: 0.9rem; border-radius: 4px; }
+        .subtab.active { background: var(--primary); color: white; }
+
+        .task-list { display: flex; flex-direction: column; gap: 8px; }
+        .task-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--card-bg);
+            gap: 10px;
+        }
+        .task-item.high { border-left: 5px solid var(--priority-high-text); background: var(--priority-high); color: var(--priority-high-text); }
+        .task-item.medium { border-left: 5px solid var(--priority-medium-text); background: var(--priority-medium); color: var(--priority-medium-text); }
+        .task-item.low { border-left: 5px solid var(--priority-low-text); background: var(--priority-low); color: var(--priority-low-text); }
+        .task-item.completed { opacity: 0.6; text-decoration: line-through; border-left-color: var(--neutral); background: #f9f9f9; color: #777; }
+        body.dark .task-item.completed { background: #252535; color: #888; }
+
+        .task-actions { display: flex; align-items: center; gap: 5px; }
+        .task-btn { border: none; background: none; cursor: pointer; font-size: 1.1rem; padding: 2px; }
+
+        /* Analytics View Layout Grid */
+        .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; }
+        @media (max-width: 600px) { .analytics-grid { grid-template-columns: 1fr; } }
+        .chart-wrapper-canvas { position: relative; height: 200px; width: 100%; margin-top: 10px; }
+
+        /* GitHub-Style Heatmap Layout */
+        .heatmap-scroll-container { overflow-x: auto; width: 100%; padding-bottom: 5px; }
+        .heatmap-container {
+            display: grid;
+            grid-auto-flow: column;
+            grid-template-rows: repeat(7, 12px);
+            gap: 3px;
+            padding: 10px 0;
+            width: max-content;
+        }
+        .heatmap-cell { width: 12px; height: 12px; background-color: #ebedf0; border-radius: 2px; position: relative; }
+        body.dark .heatmap-cell { background-color: #2d333b; }
+        .heatmap-months-labels { display: flex; gap: 34px; font-size: 0.75rem; color: var(--text-main); margin-bottom: 2px; padding-left: 20px; }
+
+        .insight-box {
+            background: #e2f0fd;
+            color: #0c5460;
+            border-left: 4px solid var(--primary);
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.95rem;
+        }
+        body.dark .insight-box { background: #1a2636; color: #b9d7fb; }
+        .insight-box ul { margin: 5px 0 0 0; padding-left: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Daily Mood Tracker</h1>
+        <button class="dark-toggle" onclick="toggleDarkMode()">🌓</button>
+    </header>
+
+    <div class="view-nav">
+        <div class="nav-tab active" id="tabTracker" onclick="switchView('tracker')">📝 Mood Logging</div>
+        <div class="nav-tab" id="tabTasks" onclick="switchView('tasks')">✅ Tasks & Day Overview</div>
+        <div class="nav-tab" id="tabAnalytics" onclick="switchView('analytics')">📊 Analytics Dashboard</div>
+    </div>
+
+    <div id="trackerView" class="app-view active">
+        <div class="card">
+            <h3>How are you feeling?</h3>
+            <div class="mood-grid" id="moodGrid">
+                </div>
+            <div class="input-group">
+                <label>Date</label>
+                <input type="date" id="entryDate">
+            </div>
+            <div class="input-group">
+                <label>Note</label>
+                <textarea id="entryNote" placeholder="What's on your mind?"></textarea>
+            </div>
+            <div id="weatherStatusBar" class="weather-info-bar">Checking location permissions...</div>
+            <button class="primary-btn" onclick="saveEntry()">Save Mood</button>
+        </div>
+
+        <div class="card">
+            <div class="cal-header">
+                <button onclick="changeMonth(-1)">❮ Prev</button>
+                <h3 id="currentMonthLabel">Month Year</h3>
+                <button onclick="changeMonth(1)">Next ❯</button>
+            </div>
+            <div class="cal-grid" id="calendarGrid"></div>
+        </div>
+
+        <div class="card">
+            <h3>Statistics (Current View)</h3>
+            <div id="statsContent"></div>
+            <div class="chart-container" id="moodChart"></div>
+            <div id="insights" style="margin-top: 30px; font-style: italic; color: var(--primary);"></div>
+        </div>
+
+        <div class="card">
+            <h3>Mood History</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <div id="tasksView" class="app-view">
+        <div class="todo-grid">
+            <div class="card" style="margin-bottom: 0;">
+                <h3 id="taskFormTitle">Quick-Add Task</h3>
+                <input type="hidden" id="editTaskId" value="">
+                <div class="input-group">
+                    <label>Task Description</label>
+                    <input type="text" id="taskTitleInput" placeholder="E.g., Complete project documentation...">
+                </div>
+                <div class="input-group">
+                    <label>Due Date</label>
+                    <input type="date" id="taskDueDateInput">
+                </div>
+                <div class="input-group">
+                    <label>Priority Level</label>
+                    <select id="taskPriorityInput">
+                        <option value="Low">Low</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <button class="primary-btn" id="taskSubmitBtn" onclick="saveTaskForm()">Add Task</button>
+                <button class="primary-btn" id="taskCancelEditBtn" onclick="resetTaskForm()" style="background:#888; margin-top:5px; display:none;">Cancel Edit</button>
+            </div>
+
+            <div>
+                <div class="card" style="padding: 15px; margin-bottom: 15px;">
+                    <h4>⚡ Productivity Stats Summary</h4>
+                    <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                        <div class="stat-item" style="padding: 5px;"><div class="stat-val" id="statsCompletedToday" style="font-size:1.2rem;">0</div><small>Today</small></div>
+                        <div class="stat-item" style="padding: 5px;"><div class="stat-val" id="statsCompletedThisWeek" style="font-size:1.2rem;">0</div><small>This Week</small></div>
+                        <div class="stat-item" style="padding: 5px;"><div class="stat-val" id="statsCompletionRate" style="font-size:1.2rem;">0%</div><small>Rate</small></div>
+                        <div class="stat-item" style="padding: 5px;"><div class="stat-val" id="statsProductivityStreak" style="font-size:1.2rem; color:var(--calm);">0d</div><small>Streak</small></div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 0; min-height: 310px;">
+                    <div class="task-subtabs">
+                        <div class="subtab active" id="subtab-today" onclick="setTaskFilter('today')">Today</div>
+                        <div class="subtab" id="subtab-upcoming" onclick="setTaskFilter('upcoming')">Upcoming</div>
+                        <div class="subtab" id="subtab-overdue" onclick="setTaskFilter('overdue')">Overdue</div>
+                        <div class="subtab" id="subtab-completed" onclick="setTaskFilter('completed')">Completed</div>
+                    </div>
+                    <div class="task-list" id="taskListContainer">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="analyticsView" class="app-view">
+        <div class="card">
+            <h3>💡 Personal Insights & Behavioral Analysis</h3>
+            <div class="insight-box" id="personalInsightsContainer">
+                <ul id="insightsList">
+                    </ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🗓 Year-Round Tracking Grid</h3>
+            <div class="heatmap-months-labels" id="heatmapMonthLabelsRow"></div>
+            <div style="display: flex; align-items: flex-start; gap: 5px;">
+                <div style="display: grid; grid-template-rows: repeat(7, 12px); gap: 3px; font-size: 0.65rem; padding-top: 10px;">
+                    <span>M</span><span>&nbsp;</span><span>W</span><span>&nbsp;</span><span>F</span><span>&nbsp;</span><span>S</span>
+                </div>
+                <div class="heatmap-scroll-container">
+                    <div class="heatmap-container" id="heatmapGridBox"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="analytics-grid">
+            <div class="card">
+                <h3>📈 Mood Trends</h3>
+                <div id="trendPanelMetrics" style="font-size: 0.9rem; margin-bottom: 10px;"></div>
+                <div class="chart-wrapper-canvas">
+                    <canvas id="trendChartCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📅 Best and Worst Days</h3>
+                <div id="weekdayMetricsText" style="font-size: 0.9rem; margin-bottom: 10px;"></div>
+                <div class="chart-wrapper-canvas">
+                    <canvas id="weekdayChartCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🔥 Consistency & Tracking Streaks</h3>
+                <div id="streakMetricsContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- DATA & STATE ---
+    const MOOD_DATA = {
+        happy: { emoji: '😊', score: 2, color: 'var(--happy)' },
+        excited: { emoji: '🤩', score: 2, color: 'var(--excited)' },
+        calm: { emoji: '😌', score: 1, color: 'var(--calm)' },
+        neutral: { emoji: '😐', score: 0, color: 'var(--neutral)' },
+        tired: { emoji: '😴', score: -1, color: 'var(--tired)' },
+        anxious: { emoji: '😰', score: -1, color: 'var(--anxious)' },
+        sad: { emoji: '😢', score: -2, color: 'var(--sad)' },
+        angry: { emoji: '😠', score: -2, color: 'var(--angry)' }
+    };
+
+    let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
+    let tasks = JSON.parse(localStorage.getItem('todoTasks')) || [];
+    let selectedMood = null;
+    let viewDate = new Date(); // Controls calendar month viewing parameters
+    let currentFetchedWeather = null; // Volatile runtime storage to handle weather updates
+    let activeTaskFilter = 'today'; // Holds the active subtab filter
+
+    // Global Chart.js pointers for handling dynamic garbage collection updates
+    let chartTrendPointer = null;
+    let chartWeekdayPointer = null;
+
+    // --- INITIALIZATION ---
+    window.onload = () => {
+        document.getElementById('entryDate').valueAsDate = new Date();
+        document.getElementById('taskDueDateInput').valueAsDate = new Date();
+        renderMoodButtons();
+        setupWeatherTracking();
+        renderAll();
+        renderTaskList();
+    };
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark');
+        if(document.getElementById('analyticsView').classList.contains('active')) {
+            renderAdvancedAnalyticsDashboard(); // Instantly refresh colors for Chart.js text labels
+        }
+    }
+
+    // Navigation Switcher Engine
+    function switchView(target) {
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+        
+        if (target === 'tracker') {
+            document.getElementById('tabTracker').classList.add('active');
+            document.getElementById('trackerView').classList.add('active');
+            renderAll();
+        } else if (target === 'tasks') {
+            document.getElementById('tabTasks').classList.add('active');
+            document.getElementById('tasksView').classList.add('active');
+            renderTaskList();
+        } else {
+            document.getElementById('tabAnalytics').classList.add('active');
+            document.getElementById('analyticsView').classList.add('active');
+            renderAdvancedAnalyticsDashboard();
+        }
+    }
+
+    function renderMoodButtons() {
+        const grid = document.getElementById('moodGrid');
+        grid.innerHTML = Object.keys(MOOD_DATA).map(key => `
+            <button class="mood-btn" onclick="selectMood('${key}')" id="btn-${key}">
+                <span>${MOOD_DATA[key].emoji}</span>
+                <small>${key}</small>
+            </button>
+        `).join('');
+    }
+
+    function selectMood(key) {
+        selectedMood = key;
+        document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById(`btn-${key}`).classList.add('selected');
+    }
+
+    // --- OPEN-METEO WEATHER API MODULE ---
+    function setupWeatherTracking() {
+        const statusBox = document.getElementById('weatherStatusBar');
+        if (!navigator.geolocation) {
+            statusBox.innerText = "Weather mapping deactivated: Geolocation is unsupported.";
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                statusBox.innerText = "Syncing regional atmospheric parameters...";
+                try {
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    if (data && data.current) {
+                        const code = data.current.weather_code;
+                        let cond = "Cloudy";
+                        if (code <= 3) cond = "Sunny";
+                        else if ([45, 48].includes(code)) cond = "Foggy";
+                        else if (code >= 51) cond = "Rainy";
+
+                        currentFetchedWeather = {
+                            temp: Math.round(data.current.temperature_2m),
+                            condition: cond
+                        };
+                        statusBox.innerHTML = `🌤️ Live Weather Synced: <strong>${currentFetchedWeather.temp}°C, ${currentFetchedWeather.condition}</strong> (Applies on save)`;
+                    }
+                } catch(e) {
+                    statusBox.innerText = "Weather tracking server is busy. Continuing normally.";
+                }
+            },
+            () => {
+                statusBox.innerText = "Location permission declined. Skipping weather tracking.";
+            }
+        );
+    }
+
+    // --- TRACKING LOGIC ---
+    function saveEntry() {
+        const dateInput = document.getElementById('entryDate').value;
+        const noteInput = document.getElementById('entryNote').value;
+
+        if (!selectedMood) return alert("Please select a mood!");
+
+        const newEntry = {
+            id: Date.now(),
+            date: dateInput,
+            mood: selectedMood,
+            note: noteInput,
+            weather: currentFetchedWeather // Safely attaches current localized weather observations
+        };
+
+        entries.push(newEntry);
+        localStorage.setItem('moodEntries', JSON.stringify(entries));
+        
+        // Reset
+        selectedMood = null;
+        document.getElementById('entryNote').value = '';
+        renderAll();
+    }
+
+    function deleteEntry(id) {
+        entries = entries.filter(e => e.id !== id);
+        localStorage.setItem('moodEntries', JSON.stringify(entries));
+        renderAll();
+    }
+
+    function changeMonth(dir) {
+        viewDate.setMonth(viewDate.getMonth() + dir);
+        renderAll();
+    }
+
+    // --- TO-DO LIST MANAGEMENT ENGINES ---
+    function setTaskFilter(filterType) {
+        activeTaskFilter = filterType;
+        document.querySelectorAll('.task-subtabs .subtab').forEach(s => s.classList.remove('active'));
+        document.getElementById(`subtab-${filterType}`).classList.add('active');
+        renderTaskList();
+    }
+
+    function saveTaskForm() {
+        const title = document.getElementById('taskTitleInput').value.trim();
+        const dueDate = document.getElementById('taskDueDateInput').value;
+        const priority = document.getElementById('taskPriorityInput').value;
+        const editId = document.getElementById('editTaskId').value;
+
+        if (!title) return alert("Please clarify your task description details!");
+
+        if (editId) {
+            // Processing updates to an existing task item
+            tasks = tasks.map(t => t.id == editId ? { ...t, title, dueDate, priority } : t);
+        } else {
+            // Instantiating a new task item
+            const newTask = {
+                id: Date.now(),
+                title,
+                dueDate,
+                priority,
+                completed: false,
+                completedDate: null,
+                order: tasks.length
+            };
+            tasks.push(newTask);
+        }
+
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        resetTaskForm();
+        renderTaskList();
+    }
+
+    function resetTaskForm() {
+        document.getElementById('taskFormTitle').innerText = "Quick-Add Task";
+        document.getElementById('editTaskId').value = "";
+        document.getElementById('taskTitleInput').value = "";
+        document.getElementById('taskDueDateInput').valueAsDate = new Date();
+        document.getElementById('taskPriorityInput').value = "Medium";
+        document.getElementById('taskSubmitBtn').innerText = "Add Task";
+        document.getElementById('taskCancelEditBtn').style.display = "none";
+    }
+
+    function triggerEditTask(id) {
+        const target = tasks.find(t => t.id == id);
+        if (!target) return;
+
+        document.getElementById('taskFormTitle').innerText = "Modify Existing Task";
+        document.getElementById('editTaskId').value = target.id;
+        document.getElementById('taskTitleInput').value = target.title;
+        document.getElementById('taskDueDateInput').value = target.dueDate;
+        document.getElementById('taskPriorityInput').value = target.priority;
+        document.getElementById('taskSubmitBtn').innerText = "Update Changes";
+        document.getElementById('taskCancelEditBtn').style.display = "block";
+    }
+
+    function toggleTaskCompletion(id) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        tasks = tasks.map(t => {
+            if (t.id == id) {
+                const updatedStatus = !t.completed;
+                return {
+                    ...t,
+                    completed: updatedStatus,
+                    completedDate: updatedStatus ? todayStr : null
+                };
+            }
+            return t;
+        });
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        renderTaskList();
+    }
+
+    function deleteTask(id) {
+        tasks = tasks.filter(t => t.id != id);
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        renderTaskList();
+    }
+
+    // Handles quick positional reordering across desktop and mobile screens
+    function moveTaskOrder(id, direction) {
+        const idx = tasks.findIndex(t => t.id == id);
+        if (idx === -1) return;
+        
+        const targetSwapIdx = idx + direction;
+        if (targetSwapIdx < 0 || targetSwapIdx >= tasks.length) return;
+
+        // Perform standard matrix index swap
+        const temp = tasks[idx];
+        tasks[idx] = tasks[targetSwapIdx];
+        tasks[targetSwapIdx] = temp;
+
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        renderTaskList();
+    }
+
+    function renderTaskList() {
+        const container = document.getElementById('taskListContainer');
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        // Process analytical performance score parameters
+        const tasksCompletedToday = tasks.filter(t => t.completed && t.completedDate === todayStr).length;
+        
+        // Calculate weekly completion variables
+        const currentMs = new Date().getTime();
+        const tasksCompletedThisWeek = tasks.filter(t => {
+            if (!t.completed || !t.completedDate) return false;
+            let completionDelta = currentMs - new Date(t.completedDate + "T00:00:00").getTime();
+            return completionDelta <= (7 * 24 * 60 * 60 * 1000);
+        }).length;
+
+        const rate = tasks.length ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0;
+
+        // Calculate productivity streak calculations
+        let trackingStreak = 0;
+        const completionDatesSortedDesc = [...new Set(tasks.filter(t => t.completed && t.completedDate).map(t => t.completedDate))].sort((a,b) => new Date(b) - new Date(a));
+        
+        if(completionDatesSortedDesc.length > 0) {
+            let workingDay = new Date(todayStr + "T00:00:00");
+            if (completionDatesSortedDesc[0] === todayStr || 
+               (workingDay - new Date(completionDatesSortedDesc[0] + "T00:00:00")) / (1000*60*60*24) <= 1) {
+                trackingStreak = 1;
+                for(let i = 1; i < completionDatesSortedDesc.length; i++) {
+                    let d1 = new Date(completionDatesSortedDesc[i-1] + "T00:00:00");
+                    let d2 = new Date(completionDatesSortedDesc[i] + "T00:00:00");
+                    if ((d1 - d2) / (1000*60*60*24) === 1) {
+                        trackingStreak++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        document.getElementById('statsCompletedToday').innerText = tasksCompletedToday;
+        document.getElementById('statsCompletedThisWeek').innerText = tasksCompletedThisWeek;
+        document.getElementById('statsCompletionRate').innerText = `${rate}%`;
+        document.getElementById('statsProductivityStreak').innerText = `${trackingStreak}d`;
+
+        // Apply tab filtering rules to the tasks array
+        let filteredTasks = [];
+        if (activeTaskFilter === 'today') {
+            filteredTasks = tasks.filter(t => !t.completed && t.dueDate === todayStr);
+        } else if (activeTaskFilter === 'upcoming') {
+            filteredTasks = tasks.filter(t => !t.completed && t.dueDate > todayStr);
+        } else if (activeTaskFilter === 'overdue') {
+            filteredTasks = tasks.filter(t => !t.completed && t.dueDate < todayStr);
+        } else {
+            filteredTasks = tasks.filter(t => t.completed);
+        }
+
+        container.innerHTML = filteredTasks.map(t => `
+            <div class="task-item ${t.completed ? 'completed' : t.priority.toLowerCase()}">
+                <div style="display:flex; align-items:center; gap:8px; flex-grow:1;">
+                    <input type="checkbox" ${t.completed ? 'checked' : ''} onclick="toggleTaskCompletion(${t.id})">
+                    <div>
+                        <div><strong>${t.title}</strong></div>
+                        <div style="font-size:0.75rem; opacity:0.8;">Due: ${t.dueDate} | Priority: ${t.priority}</div>
+                    </div>
+                </div>
+                <div class="task-actions">
+                    <button class="task-btn" onclick="moveTaskOrder(${t.id}, -1)" title="Move Up">🔼</button>
+                    <button class="task-btn" onclick="moveTaskOrder(${t.id}, 1)" title="Move Down">🔽</button>
+                    ${!t.completed ? `<button class="task-btn" onclick="triggerEditTask(${t.id})" title="Edit">✏️</button>` : ''}
+                    <button class="task-btn" onclick="deleteTask(${t.id})" title="Delete">🗑️</button>
+                </div>
+            </div>
+        `).join('') || `<p style="text-align:center; padding:20px; font-style:italic; opacity:0.7;">No items match this section.</p>`;
+    }
+
+    // --- CORE RENDERING PIPELINE ---
+    function renderAll() {
+        renderMoodButtons(); 
+        renderCalendar();
+        renderHistory();
+        renderStats();
+    }
+
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        const label = document.getElementById('currentMonthLabel');
+        grid.innerHTML = '';
+
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+        label.innerText = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(viewDate);
+
+        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(d => {
+            grid.innerHTML += `<div class="cal-day-label">${d}</div>`;
+        });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div></div>`;
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayEntries = entries.filter(e => e.date === dateStr);
+            const isToday = new Date().toISOString().split('T')[0] === dateStr;
+
+            const cell = document.createElement('div');
+            cell.className = `cal-cell ${isToday ? 'today' : ''} ${dayEntries.length ? 'has-entry' : ''}`;
+            cell.innerHTML = `
+                <div class="day-num">${day}</div>
+                <div class="cal-moods">${dayEntries.map(e => MOOD_DATA[e.mood].emoji).join('')}</div>
+            `;
+            cell.onclick = () => {
+                document.getElementById('entryDate').value = dateStr;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+            grid.appendChild(cell);
+        }
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        const sorted = [...entries].sort((a, b) => b.id - a.id);
+
+        list.innerHTML = sorted.map(e => {
+            let weatherBadgeHtml = "";
+            if (e.weather) {
+                let wEmoji = e.weather.condition === "Sunny" ? "☀️" : e.weather.condition === "Rainy" ? "🌧️" : "☁️";
+                weatherBadgeHtml = `<span class="history-weather-badge">${wEmoji} ${e.weather.temp}°C</span>`;
+            }
+            return `
+                <div class="history-item">
+                    <div style="min-width: 100px"><strong>${e.date}</strong></div>
+                    <div style="font-size: 1.5rem">${MOOD_DATA[e.mood].emoji}</div>
+                    <div style="flex-grow: 1">${e.note || '<small>No note</small>'} ${weatherBadgeHtml}</div>
+                    <button class="del-btn" onclick="deleteEntry(${e.id})">🗑</button>
+                </div>
+            `;
+        }).join('') || '<p>No entries yet.</p>';
+    }
+
+    function renderStats() {
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+        const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const monthEntries = entries.filter(e => e.date.startsWith(monthPrefix));
+
+        const statsDiv = document.getElementById('statsContent');
+        const chartDiv = document.getElementById('moodChart');
+        const insightDiv = document.getElementById('insights');
+
+        if (monthEntries.length === 0) {
+            statsDiv.innerHTML = "No data for this month.";
+            chartDiv.innerHTML = "";
+            insightDiv.innerHTML = "";
+            return;
+        }
+
+        const counts = {};
+        let totalScore = 0;
+        monthEntries.forEach(e => {
+            counts[e.mood] = (counts[e.mood] || 0) + 1;
+            totalScore += MOOD_DATA[e.mood].score;
+        });
+
+        const avgScore = totalScore / monthEntries.length;
+        const topMood = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+
+        const midPoint = 15;
+        const firstHalf = monthEntries.filter(e => parseInt(e.date.split('-')[2]) <= midPoint);
+        const secondHalf = monthEntries.filter(e => parseInt(e.date.split('-')[2]) > midPoint);
+        
+        const getAvg = (arr) => arr.length ? arr.reduce((s, e) => s + MOOD_DATA[e.mood].score, 0) / arr.length : 0;
+        const trendVal = getAvg(secondHalf) - getAvg(firstHalf);
+        const trendLabel = trendVal > 0.1 ? "Improving 📈" : trendVal < -0.1 ? "Declining 📉" : "Stable ➡️";
+
+        const weeks = {};
+        monthEntries.forEach(e => {
+            const d = new Date(e.date + "T00:00:00");
+            const weekNum = Math.ceil((d.getDate() + new Date(year, month, 1).getDay()) / 7);
+            if (!weeks[weekNum]) weeks[weekNum] = [];
+            weeks[weekNum].push(MOOD_DATA[e.mood].score);
+        });
+
+        let bestWeek = -1, worstWeek = -1, maxW = -Infinity, minW = Infinity;
+        Object.keys(weeks).forEach(w => {
+            const avg = weeks[w].reduce((a, b) => a + b, 0) / weeks[w].length;
+            if (avg > maxW) { maxW = avg; bestWeek = w; }
+            if (avg < minW) { minW = avg; worstWeek = w; }
+        });
+
+        statsDiv.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-item"><div class="stat-val">${monthEntries.length}</div>Total Entries</div>
+                <div class="stat-item"><div class="stat-val">${avgScore.toFixed(1)}</div>Avg Score</div>
+                <div class="stat-item"><div class="stat-val">${MOOD_DATA[topMood].emoji}</div>Most Frequent</div>
+                <div class="stat-item"><div class="stat-val">${trendLabel}</div>Monthly Trend</div>
+            </div>
+            <p style="margin-top:15px">Best Week: ${bestWeek} | Worst Week: ${worstWeek}</p>
+        `;
+
+        const maxCount = Math.max(...Object.values(counts));
+        chartDiv.innerHTML = Object.keys(MOOD_DATA).map(m => {
+            const h = ((counts[m] || 0) / maxCount) * 100;
+            return `<div class="chart-bar" style="height: ${h}%; background: ${MOOD_DATA[m].color}">
+                        <span class="chart-label">${MOOD_DATA[m].emoji}</span>
+                    </div>`;
+        }).join('');
+
+        let insightMsg = "";
+        const weekendMoods = monthEntries.filter(e => [0, 6].includes(new Date(e.date + "T00:00:00").getDay()));
+        const weekdayMoods = monthEntries.filter(e => ![0, 6].includes(new Date(e.date + "T00:00:00").getDay()));
+        
+        if (getAvg(weekendMoods) > getAvg(weekdayMoods)) insightMsg = "💡 You feel significantly better on weekends!";
+        else if (monthEntries.length > 5) insightMsg = "💡 Consistent tracking! Keep it up to see deeper patterns.";
+        
+        insightDiv.innerText = insightMsg;
+    }
+
+    // --- ADVANCED ANALYTICS DASHBOARD RUNNER ---
+    function renderAdvancedAnalyticsDashboard() {
+        if (!entries || entries.length === 0) {
+            document.getElementById('personalInsightsContainer').innerHTML = "No mood tracking data entries found. Log your current mood to populate metrics.";
+            return;
+        }
+
+        const isDark = document.body.classList.contains('dark');
+        const gridLinesColor = isDark ? '#444' : '#ddd';
+        const axisFontColor = isDark ? '#e0e0e0' : '#333';
+
+        const getSafeDateObj = (str) => new Date(str + "T00:00:00");
+        const todayMs = new Date().getTime();
+        const parseWindowMs = (days) => days * 24 * 60 * 60 * 1000;
+
+        // Filter standard comparison buckets
+        const weekCurrentLogs = entries.filter(e => (todayMs - getSafeDateObj(e.date).getTime()) <= parseWindowMs(7));
+        const weekPreviousLogs = entries.filter(e => {
+            let delta = todayMs - getSafeDateObj(e.date).getTime();
+            return delta > parseWindowMs(7) && delta <= parseWindowMs(14);
+        });
+        const monthCurrentLogs = entries.filter(e => (todayMs - getSafeDateObj(e.date).getTime()) <= parseWindowMs(30));
+        const monthPreviousLogs = entries.filter(e => {
+            let delta = todayMs - getSafeDateObj(e.date).getTime();
+            return delta > parseWindowMs(30) && delta <= parseWindowMs(60);
+        });
+
+        const getGroupAverage = (logs) => {
+            if(!logs.length) return null;
+            return logs.reduce((acc, current) => acc + MOOD_DATA[current.mood].score, 0) / logs.length;
+        };
+
+        const wCurAvg = getGroupAverage(weekCurrentLogs);
+        const wPrevAvg = getGroupAverage(weekPreviousLogs);
+        const mCurAvg = getGroupAverage(monthCurrentLogs);
+        const mPrevAvg = getGroupAverage(monthPreviousLogs);
+
+        // CARD 1: MOOD TRENDS
+        const trendPanelMetricDiv = document.getElementById('trendPanelMetrics');
+        let weekPctString = "N/A";
+        if (wCurAvg !== null && wPrevAvg !== null) {
+            let pct = ((wCurAvg - wPrevAvg) / (Math.abs(wPrevAvg) || 1)) * 100;
+            weekPctString = `${pct >= 0 ? '↗️ +' : '↘️ '}${pct.toFixed(0)}% vs last week`;
+        }
+        let monthPctString = "N/A";
+        if (mCurAvg !== null && mPrevAvg !== null) {
+            let pct = ((mCurAvg - mPrevAvg) / (Math.abs(mPrevAvg) || 1)) * 100;
+            monthPctString = `${pct >= 0 ? '↗️ +' : '↘️ '}${pct.toFixed(0)}% vs last month`;
+        }
+
+        trendPanelMetricDiv.innerHTML = `
+            <strong>Weekly Average Score:</strong> ${wCurAvg !== null ? wCurAvg.toFixed(1) : 'No Data'} (${weekPctString})<br>
+            <strong>Monthly Average Score:</strong> ${mCurAvg !== null ? mCurAvg.toFixed(1) : 'No Data'} (${monthPctString})
+        `;
+
+        const lineSortedLogs = [...entries].sort((a,b) => getSafeDateObj(a.date) - getSafeDateObj(b.date)).slice(-12);
+        const trendLabels = lineSortedLogs.map(e => e.date.substring(5));
+        const trendValues = lineSortedLogs.map(e => MOOD_DATA[e.mood].score);
+
+        if (chartTrendPointer) chartTrendPointer.destroy();
+        chartTrendPointer = new Chart(document.getElementById('trendChartCanvas').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: 'Valence Trend',
+                    data: trendValues,
+                    borderColor: '#4a90e2',
+                    backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                    tension: 0.15,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: gridLinesColor }, ticks: { color: axisFontColor, stepSize: 1 }, min: -2, max: 2 },
+                    x: { grid: { color: gridLinesColor }, ticks: { color: axisFontColor } }
+                }
+            }
+        });
+
+        // CARD 2: BEST AND WORST DAYS (WEEKDAY AGGREGATION)
+        const dayLabelsFull = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const weekdaySums = Array(7).fill(0);
+        const weekdayCounts = Array(7).fill(0);
+
+        entries.forEach(e => {
+            let dayIdx = getSafeDateObj(e.date).getDay();
+            weekdaySums[dayIdx] += MOOD_DATA[e.mood].score;
+            weekdayCounts[dayIdx]++;
+        });
+
+        const weekdayMeans = weekdaySums.map((sum, i) => weekdayCounts[i] ? sum / weekdayCounts[i] : 0);
+
+        let bestDayIndex = -1, worstDayIndex = -1, highVal = -Infinity, lowVal = Infinity;
+        weekdayMeans.forEach((mean, idx) => {
+            if(weekdayCounts[idx] > 0) {
+                if(mean > highVal) { highVal = mean; bestDayIndex = idx; }
+                if(mean < lowVal) { lowVal = mean; worstDayIndex = idx; }
+            }
+        });
+
+        document.getElementById('weekdayMetricsText').innerHTML = `
+            <strong>🏆 Best Weekday:</strong> ${bestDayIndex !== -1 ? dayLabelsFull[bestDayIndex] : 'N/A'} (${highVal.toFixed(1)})<br>
+            <strong>⚠️ Worst Weekday:</strong> ${worstDayIndex !== -1 ? dayLabelsFull[worstDayIndex] : 'N/A'} (${lowVal.toFixed(1)})
+        `;
+
+        if (chartWeekdayPointer) chartWeekdayPointer.destroy();
+        chartWeekdayPointer = new Chart(document.getElementById('weekdayChartCanvas').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                datasets: [{
+                    data: weekdayMeans,
+                    backgroundColor: weekdayMeans.map(v => v >= 0 ? 'rgba(139, 195, 74, 0.6)' : 'rgba(244, 67, 54, 0.6)'),
+                    borderWidth: 1,
+                    borderColor: 'var(--border)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: gridLinesColor }, ticks: { color: axisFontColor }, min: -2, max: 2 },
+                    x: { grid: { color: gridLinesColor }, ticks: { color: axisFontColor } }
+                }
+            }
+        });
+
+        // CARD 3: STREAKS
+        const uniqueDatesSorted = [...new Set(entries.map(e => e.date))].sort();
+        let currentStreak = 0, longestStreak = 0;
+
+        if (uniqueDatesSorted.length > 0) {
+            let workingStreak = 1, recordStreak = 1;
+            for(let i = 1; i < uniqueDatesSorted.length; i++) {
+                let dayDelta = (getSafeDateObj(uniqueDatesSorted[i]) - getSafeDateObj(uniqueDatesSorted[i-1])) / parseWindowMs(1);
+                if (dayDelta === 1) { workingStreak++; } 
+                else if (dayDelta > 1) {
+                    if (workingStreak > recordStreak) recordStreak = workingStreak;
+                    workingStreak = 1;
+                }
+            }
+            longestStreak = Math.max(recordStreak, workingStreak);
+            let distanceDays = (getSafeDateObj(new Date().toISOString().split('T')[0]) - getSafeDateObj(uniqueDatesSorted[uniqueDatesSorted.length - 1])) / parseWindowMs(1);
+            currentStreak = (distanceDays <= 1) ? workingStreak : 0;
+        }
+
+        let runningPos = 0, recordPos = 0;
+        [...entries].sort((a,b) => getSafeDateObj(a.date) - getSafeDateObj(b.date)).forEach(log => {
+            if(MOOD_DATA[log.mood].score > 0) {
+                runningPos++;
+                if(runningPos > recordPos) recordPos = runningPos;
+            } else { runningPos = 0; }
+        });
+
+        document.getElementById('streakMetricsContent').innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-item"><div class="stat-val">${currentStreak} Days</div>Current Streak</div>
+                <div class="stat-item"><div class="stat-val">${longestStreak} Days</div>Longest Streak</div>
+                <div class="stat-item"><div class="stat-val">${entries.length}</div>Total Entries</div>
+                <div class="stat-item"><div class="stat-val" style="color:var(--calm);">${recordPos} Days</div>Positive Streak</div>
+            </div>
+        `;
+
+        // CARD 4: GITHUB STYLE CALENDAR HEATMAP
+        const heatmapGridBox = document.getElementById('heatmapGridBox');
+        const monthRow = document.getElementById('heatmapMonthLabelsRow');
+        heatmapGridBox.innerHTML = ''; monthRow.innerHTML = '';
+
+        const totalCells = 53 * 7;
+        const anchorStartDate = new Date();
+        anchorStartDate.setDate(anchorStartDate.getDate() - (totalCells - 1));
+
+        for (let w = 0; w < 53; w += 4.4) {
+            let lblDate = new Date(anchorStartDate.getTime() + parseWindowMs(w * 7));
+            monthRow.innerHTML += `<div style="width:48px">${lblDate.toLocaleString('en-US', { month: 'short' })}</div>`;
+        }
+
+        for(let c = 0; c < totalCells; c++) {
+            let loopDate = new Date(anchorStartDate.getTime() + parseWindowMs(c));
+            let formatString = `${loopDate.getFullYear()}-${String(loopDate.getMonth()+1).padStart(2,'0')}-${String(loopDate.getDate()).padStart(2,'0')}`;
+            let matchedLogs = entries.filter(e => e.date === formatString);
+            
+            let alphaDensityColorStyle = "";
+            if (matchedLogs.length > 0) {
+                let meanValence = matchedLogs.reduce((sum, current) => sum + MOOD_DATA[current.mood].score, 0) / matchedLogs.length;
+                if (meanValence > 0) {
+                    alphaDensityColorStyle = `background-color: rgba(74, 144, 226, ${0.2 + (meanValence / 2) * 0.8});`;
+                } else if (meanValence < 0) {
+                    alphaDensityColorStyle = `background-color: rgba(244, 67, 54, ${0.2 + (Math.abs(meanValence) / 2) * 0.8});`;
+                } else {
+                    alphaDensityColorStyle = `background-color: var(--neutral);`;
+                }
+            }
+
+            let cellDiv = document.createElement('div');
+            cellDiv.className = "heatmap-cell";
+            if(alphaDensityColorStyle) cellDiv.style = alphaDensityColorStyle;
+            cellDiv.title = `${formatString}: Score Average (${matchedLogs.length ? (matchedLogs.reduce((s,l)=>s+MOOD_DATA[l.mood].score,0)/matchedLogs.length).toFixed(1) : 'No data'})`;
+            heatmapGridBox.appendChild(cellDiv);
+        }
+
+        // PERSONAL BEHAVIORAL INSIGHT ENGINE
+        const insightsUl = document.getElementById('insightsList');
+        const observationsList = [];
+
+        if (bestDayIndex !== -1) observationsList.push(`🎉 Your mood is highest on average on <strong>${dayLabelsFull[bestDayIndex]}s</strong>.`);
+        if (worstDayIndex !== -1) observationsList.push(`📅 Your mood trends lowest on average on <strong>${dayLabelsFull[worstDayIndex]}s</strong>.`);
+        if (currentStreak > 0) observationsList.push(`🔥 You are keeping up a consistent <strong>${currentStreak}-day logging streak</strong>.`);
+        
+        const macroCounts = {};
+        entries.forEach(e => macroCounts[e.mood] = (macroCounts[e.mood] || 0) + 1);
+        const modalMood = Object.keys(macroCounts).reduce((a, b) => macroCounts[a] > macroCounts[b] ? a : b, "");
+        if (modalMood) observationsList.push(`💭 Your most frequent emotional descriptor state is **${modalMood}**.`);
+
+        // Task Correlation Insights Correlator Engine
+        let correlationHigherMoodCount = 0;
+        let correlationOverdueCount = 0;
+
+        entries.forEach(e => {
+            const dayTasks = tasks.filter(t => t.dueDate === e.date);
+            const completedOnDayCount = dayTasks.filter(t => t.completed).length;
+            const overdueOnDayCount = tasks.filter(t => !t.completed && t.dueDate < e.date).length;
+
+            if (completedOnDayCount >= 2 && MOOD_DATA[e.mood].score >= 1) correlationHigherMoodCount++;
+            if (overdueOnDayCount >= 3 && MOOD_DATA[e.mood].score <= -1) correlationOverdueCount++;
+        });
+
+        if (correlationHigherMoodCount > 0) {
+            observationsList.push(`🚀 <strong>Task Completion Boost:</strong> Your mood is historically higher on days when more tasks are completed successfully.`);
+            observationsList.push(`🎯 <strong>Productivity Correlation:</strong> Productive milestones directly align with your positive mood states.`);
+        }
+        if (correlationOverdueCount > 0) {
+            observationsList.push(`⚠️ <strong>Overdue Strain:</strong> Your recorded well-being scores decrease on days when overdue tasks accumulate.`);
+        }
+        if (observationsList.length === 4) {
+            observationsList.push("💡 Complete tasks on time and track daily to unlock richer behavioral insights.");
+        }
+
+        insightsUl.innerHTML = observationsList.map(row => `<li>${row}</li>`).join('');
+    }
+</script>
+
+</body>
+</html>
