@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraSphere — Daily Mood Tracker & Productivity Ecosystem</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --bg-app: #f4f6fa;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-light: rgba(79, 70, 229, 0.1);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -2px rgba(0,0,0,0.02);
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+            /* Mood Palette Mapping */
+            --happy: #fbbf24;
+            --excited: #f97316;
+            --calm: #10b981;
+            --neutral: #94a3b8;
+            --tired: #78350f;
+            --anxious: #a855f7;
+            --sad: #3b82f6;
+            --angry: #ef4444;
+
+            /* Priorities */
+            --priority-high: #fee2e2;
+            --priority-high-text: #991b1b;
+            --priority-medium: #fef3c7;
+            --priority-medium-text: #92400e;
+            --priority-low: #dcfce7;
+            --priority-low-text: #166534;
+        }
+
+        body.dark {
+            --bg-app: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-light: rgba(99, 102, 241, 0.15);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
+
+            --priority-high: #451a1a;
+            --priority-high-text: #fca5a5;
+            --priority-medium: #453015;
+            --priority-medium-text: #fcd34d;
+            --priority-low: #143520;
+            --priority-low-text: #86efac;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-stack); }
+        body { background-color: var(--bg-app); color: var(--text-main); min-height: 100vh; transition: var(--transition); padding-bottom: 60px; }
+        
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        
+        /* App Header Layout */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+        .logo-section h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.025em; display: flex; align-items: center; gap: 8px; }
+        .logo-section p { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+
+        .btn-icon { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-main); box-shadow: var(--shadow-sm); transition: var(--transition); }
+        .btn-icon:hover { background: var(--border); transform: translateY(-1px); }
+
+        /* Unified Navigation Tabs */
+        .navigation-row { display: flex; gap: 8px; margin-bottom: 24px; overflow-x: auto; padding-bottom: 4px; }
+        .nav-tab-item { padding: 12px 20px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-md); font-weight: 600; font-size: 0.95rem; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-sm); transition: var(--transition); white-space: nowrap; }
+        .nav-tab-item:hover { color: var(--text-main); background: var(--bg-app); }
+        .nav-tab-item.active { background: var(--primary); color: #ffffff; border-color: var(--primary); box-shadow: var(--shadow-md); }
+
+        /* UI Framework Layout Panels */
+        .view-panel { display: none; animation: fadeIn 0.3s ease-in-out forwards; }
+        .view-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 968px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; transition: box-shadow 0.2s; }
+        .card:hover { box-shadow: var(--shadow-md); }
+        .card-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 18px; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; letter-spacing: -0.01em; }
+
+        /* Form Controls styling */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
+        input[type="text"], input[type="date"], select, textarea { width: 100%; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card-bg); color: var(--text-main); font-size: 0.95rem; transition: var(--transition); outline: none; }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+        textarea { resize: vertical; min-height: 90px; }
+
+        /* Mood Button Grid Matrix */
+        .mood-selector-matrix { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+        @media (max-width: 480px) { .mood-selector-matrix { grid-template-columns: repeat(2, 1fr); } }
+        .mood-node-btn { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 8px; cursor: pointer; text-align: center; transition: var(--transition); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .mood-node-btn:hover { background: var(--bg-app); transform: translateY(-2px); }
+        .mood-node-btn span { font-size: 1.75rem; }
+        .mood-node-btn small { font-size: 0.75rem; font-weight: 600; text-transform: capitalize; color: var(--text-muted); }
+        .mood-node-btn.selected { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 2px var(--primary); }
+        .mood-node-btn.selected small { color: var(--primary); }
+
+        /* Advanced Tag System Mapping */
+        .context-tag-pool { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+        .context-tag-pill { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 0.8rem; font-weight: 600; background: var(--card-bg); color: var(--text-muted); cursor: pointer; transition: var(--transition); }
+        .context-tag-pill:hover { border-color: var(--text-muted); color: var(--text-main); }
+        .context-tag-pill.selected { background: var(--primary); color: #ffffff; border-color: var(--primary); }
+
+        .btn-action-primary { background: var(--primary); color: #ffffff; border: none; padding: 12px 24px; border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 700; cursor: pointer; width: 100%; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--shadow-sm); }
+        .btn-action-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+        /* Custom Interactive Calendar Architecture */
+        .calendar-view-frame { width: 100%; }
+        .calendar-grid-layout { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        .calendar-weekday-heading { text-align: center; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); padding: 6px 0; letter-spacing: 0.05em; }
+        .calendar-date-cell { min-height: 90px; border: 1px solid var(--border); background: var(--card-bg); border-radius: var(--radius-md); padding: 8px; cursor: pointer; transition: var(--transition); display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+        .calendar-date-cell:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--text-muted); }
+        .calendar-date-cell.today { border: 2px solid var(--primary); box-shadow: var(--shadow-sm); }
+        .calendar-date-cell.empty-node { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
+        .calendar-date-cell .cell-number { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
+        .calendar-date-cell .cell-content-meta { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+        .calendar-date-cell .cell-task-badge { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; background: var(--primary); border-radius: 50%; }
+
+        /* History Registry Layout styling */
+        .history-timeline-container { display: flex; flex-direction: column; gap: 12px; max-height: 520px; overflow-y: auto; padding-right: 4px; }
+        .history-timeline-card { display: flex; align-items: center; gap: 16px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card-bg); transition: var(--transition); }
+        .history-timeline-card:hover { border-color: var(--primary); background: var(--bg-app); }
+        .history-date-stamp { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); min-width: 85px; }
+        .history-emoji-frame { font-size: 1.8rem; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: var(--bg-app); border-radius: 50%; }
+        .history-details-block { flex-grow: 1; }
+        .history-details-text { font-size: 0.95rem; color: var(--text-main); font-weight: 500; margin-bottom: 4px; }
+        .history-pills-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+        .history-badge-item { font-size: 0.7rem; font-weight: 600; padding: 2px 6px; background: var(--border); border-radius: 4px; color: var(--text-main); }
+        .history-weather-pill { font-size: 0.7rem; font-weight: 600; padding: 2px 6px; background: var(--primary-light); color: var(--primary); border-radius: 4px; }
+
+        /* Tasks Matrix Framework Grid */
+        .todo-workspace-grid { display: grid; grid-template-columns: 1fr 1.8fr; gap: 24px; align-items: start; }
+        @media (max-width: 820px) { .todo-workspace-grid { grid-template-columns: 1fr; } }
+        
+        .tabs-sub-row { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; padding-bottom: 4px; overflow-x: auto; }
+        .sub-tab-node { padding: 8px 14px; font-size: 0.85rem; font-weight: 700; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); transition: var(--transition); white-space: nowrap; }
+        .sub-tab-node:hover { color: var(--text-main); background: var(--bg-app); }
+        .sub-tab-node.active { color: var(--primary); background: var(--primary-light); }
+
+        .workspace-task-list { display: flex; flex-direction: column; gap: 10px; }
+        .workspace-task-item { display: flex; align-items: center; justify-content: space-between; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card-bg); gap: 12px; transition: var(--transition); }
+        .workspace-task-item:hover { transform: translateX(2px); box-shadow: var(--shadow-sm); }
+        .workspace-task-item.high { border-left: 4px solid var(--priority-high-text); background: var(--priority-high); }
+        .workspace-task-item.medium { border-left: 4px solid var(--priority-medium-text); background: var(--priority-medium); }
+        .workspace-task-item.low { border-left: 4px solid var(--priority-low-text); background: var(--priority-low); }
+        .workspace-task-item.completed { opacity: 0.55; text-decoration: line-through; border-left-color: var(--neutral); background: var(--bg-app); }
+
+        .task-meta-info h5 { font-size: 0.95rem; font-weight: 600; color: var(--text-main); }
+        .task-meta-info span { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+        .task-control-actions { display: flex; gap: 4px; }
+
+        /* Metrics Display Widgets Grid */
+        .summary-stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+        @media (max-width: 520px) { .summary-stats-strip { grid-template-columns: repeat(2, 1fr); } }
+        .strip-metric-card { background: var(--card-bg); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-md); text-align: center; }
+        .strip-metric-val { font-size: 1.3rem; font-weight: 800; color: var(--primary); letter-spacing: -0.02em; }
+        .strip-metric-lbl { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-top: 2px; }
+
+        /* Heatmap Grid Infrastructure Architecture */
+        .heatmap-outer-container { padding: 10px 0; }
+        .heatmap-grid-scrollable { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; overflow-x: auto; padding-bottom: 8px; }
+        .heatmap-node-point { width: 11px; height: 11px; background-color: var(--border); border-radius: 2px; transition: transform 0.1s; }
+        .heatmap-node-point:hover { transform: scale(1.3); z-index: 10; cursor: pointer; }
+
+        /* Global Notification Framework Toast Alert banner */
+        .toast-popup-banner { position: fixed; bottom: 24px; right: 24px; background: #1e293b; color: #ffffff; padding: 12px 20px; border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; box-shadow: var(--shadow-lg); z-index: 2000; transform: translateY(100px); opacity: 0; transition: var(--transition); display: flex; align-items: center; gap: 8px; }
+        .toast-popup-banner.active { transform: translateY(0); opacity: 1; }
+        body.dark .toast-popup-banner { background: #f8fafc; color: #0f172a; }
+
+        /* Search Layout Frame Interface styling */
+        .search-wrapper-block { display: flex; gap: 10px; margin-bottom: 18px; }
+        .search-input-field { flex-grow: 1; }
+
+        /* Clean State Empty Handling Layout */
+        .empty-state-placeholder { text-align: center; padding: 36px 16px; color: var(--text-muted); font-size: 0.9rem; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .empty-state-placeholder span { font-size: 2rem; }
+
+        /* Config layout section utilities styles */
+        .configuration-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .config-card-btn { background: var(--bg-app); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: var(--transition); text-align: left; width: 100%; }
+        .config-card-btn:hover { border-color: var(--primary); background: var(--card-bg); transform: translateY(-1px); }
+        .config-card-icon { font-size: 1.5rem; width: 42px; height: 42px; background: var(--card-bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); }
+        
+        /* Interactive Onboarding Flow Modal Overlay framework */
+        .onboarding-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15,23,42,0.6); display: flex; align-items: center; justify-content: center; z-index: 3000; padding: 16px; opacity: 0; pointer-events: none; transition: var(--transition); backdrop-filter: blur(4px); }
+        .onboarding-modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .onboarding-modal-content { background: var(--card-bg); border-radius: var(--radius-lg); padding: 32px; max-width: 480px; width: 100%; box-shadow: var(--shadow-lg); text-align: center; transform: scale(0.95); transition: var(--transition); }
+        .onboarding-modal-overlay.active .onboarding-modal-content { transform: scale(1); }
+        .onboarding-welcome-emoji { font-size: 3.5rem; margin-bottom: 16px; display: inline-block; animation: wave 1.2s infinite; }
+        @keyframes wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(15deg); } }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div class="logo-section">
+            <h1>🌌 AuraSphere</h1>
+            <p>Ecosystem for Emotional Intelligence &amp; Daily Focus</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-icon" onclick="toggleDarkMode()" title="Toggle Interface Mode" aria-label="Toggle Dark Mode">🌓</button>
+            <div id="weatherStatusBar" class="weather-info-bar">Awaiting coordinate metrics...</div>
+        </div>
+    </header>
+
+    <nav class="navigation-row" role="tablist">
+        <button class="nav-tab-item active" id="tabButtonTracker" onclick="switchActiveAppView('tracker')" role="tab" aria-selected="true">📝 Emotional Logging</button>
+        <button class="nav-tab-item" id="tabButtonTasks" onclick="switchActiveAppView('tasks')" role="tab" aria-selected="false">✅ Task Workspace</button>
+        <button class="nav-tab-item" id="tabButtonAnalytics" onclick="switchActiveAppView('analytics')" role="tab" aria-selected="false">📊 Deep Analytics</button>
+        <button class="nav-tab-item" id="tabButtonSettings" onclick="switchActiveAppView('settings')" role="tab" aria-selected="false">⚙️ Preferences</button>
+    </nav>
+
+    <main id="viewPanelTracker" class="view-panel active" role="tabpanel">
+        <div class="dashboard-grid">
+            
+            <section class="card">
+                <h3 class="card-title" id="loggerPanelHeaderTitle">Quantify Current State</h3>
+                <form id="moodLoggingForm" onsubmit="event.preventDefault();">
+                    <div class="form-group">
+                        <label>Primary Emotional Descriptor</label>
+                        <div class="mood-selector-matrix" id="moodInteractiveSelectorGrid"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Contextual Activity Tags</label>
+                        <div class="context-tag-pool" id="loggerFormTagPool"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Target Entry Date</label>
+                        <input type="date" id="loggerEntryDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Qualitative Journal Note</label>
+                        <textarea id="loggerEntryNote" placeholder="Detail any environmental triggers, interpersonal events, or cognitive workflows..."></textarea>
+                    </div>
+
+                    <button type="button" class="btn-action-primary" onclick="commitLoggedMoodEntry()">Commit Daily State Log</button>
+                </form>
+            </section>
+
+            <section class="card">
+                <h3 class="card-title">
+                    <span>📅 Interactive Calendar Hub</span>
+                    <span style="font-size: 0.85rem; font-weight: 500;" id="calendarMonthStringLabel">Month Year</span>
+                </h3>
+                <div class="calendar-view-frame">
+                    <div class="cal-header" style="margin-bottom: 12px;">
+                        <button class="btn-icon" onclick="adjustViewCalendarMonth(-1)" title="Previous Month">❮</button>
+                        <button class="btn-icon" onclick="adjustViewCalendarMonth(1)" title="Next Month">❯</button>
+                    </div>
+                    <div class="calendar-grid-layout" id="interactiveCalendarMatrixGrid"></div>
+                </div>
+            </section>
+
+        </div>
+
+        <div class="card" id="focusedDayInspectionCard" style="display: none; border-left: 4px solid var(--primary);">
+            <h3 class="card-title">
+                <span id="focusedInspectionDateTitle">Date Footprint Inspection</span>
+                <button class="btn-icon" style="width:28px; height:28px; font-size:0.8rem;" onclick="dismissFocusedInspectionCard()">✕</button>
+            </h3>
+            <div id="focusedInspectionContentBox"></div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">🔍 Comprehensive Ledger History</h3>
+            <div class="search-wrapper-block">
+                <input type="text" class="search-input-field" id="historyNaturalLanguageSearchInput" oninput="executeHistoryFilteringSearch()" placeholder="Filter logs via phrases (e.g. 'happy', 'rainy', 'Study', 'Exam Prep')...">
+            </div>
+            <div class="history-timeline-container" id="historyLedgerTimelineContainer"></div>
+        </div>
+    </main>
+
+    <main id="viewPanelTasks" class="view-panel" role="tabpanel">
+        <div class="todo-workspace-grid">
+            
+            <section class="card">
+                <h3 class="card-title" id="taskWorkspaceFormTitle">Instantiate Action Item</h3>
+                <input type="hidden" id="taskFormEditingTargetId" value="">
+                <form onsubmit="event.preventDefault();">
+                    <div class="form-group">
+                        <label>Task Specification Description</label>
+                        <input type="text" id="taskWorkspaceTitleInput" placeholder="E.g., Finalize architecture review docs..." required>
+                    </div>
+                    <div class="form-group">
+                        <label>Execution Target Due Date</label>
+                        <input type="date" id="taskWorkspaceDueDateInput" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority Rank Impact Mapping</label>
+                        <select id="taskWorkspacePrioritySelect">
+                            <option value="Low">Low Priority</option>
+                            <option value="Medium" selected>Medium Priority</option>
+                            <option value="High">High Priority</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn-action-primary" id="taskWorkspaceFormSubmitBtn" onclick="commitTaskFormSubmission()">Schedule Task Item</button>
+                    <button type="button" class="btn-action-primary" id="taskWorkspaceFormCancelBtn" onclick="resetTaskWorkspaceFormState()" style="background:#64748b; margin-top:6px; display:none;">Abort Changes</button>
+                </form>
+            </section>
+
+            <section>
+                <div class="card" style="padding: 16px; margin-bottom: 16px;">
+                    <h4 style="font-size:0.9rem; font-weight:700; margin-bottom:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">⚡ Execution Vector Summary</h4>
+                    <div class="summary-stats-strip">
+                        <div class="strip-metric-card"><div class="strip-metric-val" id="widgetCountCompletedToday">0</div><div class="strip-metric-lbl">Done Today</div></div>
+                        <div class="strip-metric-card"><div class="strip-metric-val" id="widgetCountCompletedWeek">0</div><div class="strip-metric-lbl">Done Week</div></div>
+                        <div class="strip-metric-card"><div class="strip-metric-val" id="widgetPercentCompletionRate">0%</div><div class="strip-metric-lbl">Success Rate</div></div>
+                        <div class="strip-metric-card"><div class="strip-metric-val" id="widgetProductivityStreakCount">0d</div><div class="strip-metric-lbl">Focus Streak</div></div>
+                    </div>
+                </div>
+
+                <div class="card" style="min-height: 340px;">
+                    <div class="tabs-sub-row" role="tablist">
+                        <button class="sub-tab-node active" id="subtab-today" onclick="switchActiveTaskFilter('today')">Scheduled Today</button>
+                        <button class="sub-tab-node" id="subtab-upcoming" onclick="switchActiveTaskFilter('upcoming')">Upcoming Queue</button>
+                        <button class="sub-tab-node" id="subtab-overdue" onclick="switchActiveTaskFilter('overdue')">Overdue Backlog</button>
+                        <button class="sub-tab-node" id="subtab-completed" onclick="switchActiveTaskFilter('completed')">Archived Done</button>
+                    </div>
+                    <div class="workspace-task-list" id="taskWorkspaceListContainer"></div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <main id="viewPanelAnalytics" class="view-panel" role="tabpanel">
+        <div class="card">
+            <h3 class="card-title">💡 Automated Synthesized Behavioral Insights</h3>
+            <div class="insight-box" style="margin-bottom:0;">
+                <ul id="analyticsDynamicInsightsUnorderedList" style="list-style-type:none; padding-left:0; display:flex; flex-direction:column; gap:8px;"></ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">🗓 Year-Round Chrono Footprint Grid</h3>
+            <div class="heatmap-months-labels" id="heatmapYearlyTimelineMonthsRow"></div>
+            <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <div style="display: grid; grid-template-rows: repeat(7, 11px); gap: 3px; font-size: 0.65rem; padding-top: 10px; color: var(--text-muted); font-weight:700;">
+                    <span>M</span><span>&nbsp;</span><span>W</span><span>&nbsp;</span><span>F</span><span>&nbsp;</span><span>S</span>
+                </div>
+                <div class="heatmap-outer-container" style="flex-grow:1;">
+                    <div class="heatmap-grid-scrollable" id="heatmapInteractiveMatrixBox"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="analytics-grid">
+            <div class="card">
+                <h3>📈 Operational Valence Trends</h3>
+                <div class="chart-wrapper-canvas">
+                    <canvas id="canvasTrendChartElement"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3>📊 Temporal Day Breakdown Matrix</h3>
+                <div class="chart-wrapper-canvas">
+                    <canvas id="canvasWeekdayChartElement"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="viewPanelSettings" class="view-panel" role="tabpanel">
+        <div class="card">
+            <h3 class="card-title">⚙️ App Core Configurations &amp; Portability</h3>
+            <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">Manage data snapshots, wipe internal cache footprints, or generate placeholder simulation parameters.</p>
+            
+            <div class="configuration-grid">
+                <button class="config-card-btn" onclick="triggerApplicationDataExport()">
+                    <div class="config-card-icon">📤</div>
+                    <div>
+                        <strong style="display:block; font-size:0.95rem;">Export Data Snapshot</strong>
+                        <span style="font-size:0.8rem; color:var(--text-muted);">Backup metrics to JSON file</span>
+                    </div>
+                </button>
+
+                <button class="config-card-btn" onclick="document.getElementById('importDataHiddenFileInput').click()">
+                    <div class="config-card-icon">📥</div>
+                    <div>
+                        <strong style="display:block; font-size:0.95rem;">Import Data Snapshot</strong>
+                        <span style="font-size:0.8rem; color:var(--text-muted);">Restore environment database</span>
+                    </div>
+                </button>
+                <input type="file" id="importDataHiddenFileInput" style="display:none;" onchange="triggerApplicationDataImport(event)" accept=".json">
+
+                <button class="config-card-btn" onclick="generateMockSimulationData()" style="border-color: var(--primary-light);">
+                    <div class="config-card-icon">🧪</div>
+                    <div>
+                        <strong style="display:block; font-size:0.95rem; color:var(--primary);">Seed Simulation Logs</strong>
+                        <span style="font-size:0.8rem; color:var(--text-muted);">Populate 30 days of mockup history</span>
+                    </div>
+                </button>
+
+                <button class="config-card-btn" onclick="clearAllApplicationDataStore()" style="border-color: rgba(239,68,68,0.2);">
+                    <div class="config-card-icon">🗑️</div>
+                    <div>
+                        <strong style="display:block; font-size:0.95rem; color:var(--angry);">Purge Ecosystem Database</strong>
+                        <span style="font-size:0.8rem; color:var(--text-muted);">Delete all local records permanently</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div class="onboarding-modal-overlay" id="onboardingFlowModalOverlay">
+    <div class="onboarding-modal-content">
+        <div class="onboarding-welcome-emoji">👋</div>
+        <h2 style="font-size:1.5rem; font-weight:800; margin-bottom:10px;">Welcome to AuraSphere</h2>
+        <p style="font-size:0.95rem; color:var(--text-muted); margin-bottom:24px; line-height:1.5;">An interconnected pipeline correlating your psychological valence descriptors with task throughput and environmental factors.</p>
+        <button class="btn-action-primary" onclick="completeOnboardingFlowDismissal()">Initialize Workspace</button>
+    </div>
+</div>
+
+<div class="toast-popup-banner" id="globalToastFeedbackNotificationBanner">
+    <span id="globalToastIconPlaceholder">✨</span>
+    <span id="globalToastMessagePlaceholder">Transaction processed successfully.</span>
+</div>
+
+<script>
+    // --- APP IMMUTABLE CONFIG SCHEMAS ---
+    const MOOD_DATA = {
+        happy: { emoji: '😊', score: 2, color: '#fbbf24' },
+        excited: { emoji: '🤩', score: 2, color: '#f97316' },
+        calm: { emoji: '😌', score: 1, color: '#10b981' },
+        neutral: { emoji: '😐', score: 0, color: '#94a3b8' },
+        tired: { emoji: '😴', score: -1, color: '#78350f' },
+        anxious: { emoji: '😰', score: -1, color: '#a855f7' },
+        sad: { emoji: '😢', score: -2, color: '#3b82f6' },
+        angry: { emoji: '😠', score: -2, color: '#ef4444' }
+    };
+
+    const CONTEXTUAL_TAGS_REGISTRY = ['Study', 'Socializing', 'Exercise', 'Rest', 'Nutritious Meal', 'Employment', 'Exam Prep'];
+
+    // --- APPLICATION CORE RUNTIME STATE ---
+    let entries = JSON.parse(localStorage.getItem('moodEntries')) || [];
+    let tasks = JSON.parse(localStorage.getItem('todoTasks')) || [];
+    let activeSelectedMoodKey = null;
+    let activeSelectedTagsArray = [];
+    let activeCalendarViewingDateObj = new Date();
+    let runtimeFetchedWeatherObject = null;
+    let activeWorkspaceTaskFilterString = 'today';
+
+    // Chart.js Pointers
+    let chartInstanceTrendPointer = null;
+    let chartInstanceWeekdayPointer = null;
+
+    // --- LIFECYCLE INITIALIZATION ---
+    window.onload = () => {
+        initializeOnboardingValidation();
+        synchronizeDefaultFormInputDates();
+        renderInteractiveMoodSelectionGrid();
+        renderContextualTagSelectorPools();
+        initializeRegionalWeatherSync();
+        refreshGlobalEcosystemViews();
+    };
+
+    function initializeOnboardingValidation() {
+        if (!localStorage.getItem('aurasphere_onboarded')) {
+            document.getElementById('onboardingFlowModalOverlay').classList.add('active');
+        }
+    }
+
+    function completeOnboardingFlowDismissal() {
+        localStorage.setItem('aurasphere_onboarded', 'true');
+        document.getElementById('onboardingFlowModalOverlay').classList.remove('active');
+        triggerToastNotificationFeedback('🚀', 'Ecosystem workspace validated successfully.');
+    }
+
+    function synchronizeDefaultFormInputDates() {
+        const localISOString = new Date().toISOString().split('T')[0];
+        document.getElementById('loggerEntryDate').value = localISOString;
+        document.getElementById('taskWorkspaceDueDateInput').value = localISOString;
+    }
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark');
+        triggerToastNotificationFeedback('🌓', 'Interface presentation skin updated.');
+        if (document.getElementById('viewPanelAnalytics').classList.contains('active')) {
+            renderIntelligentAnalyticsSuiteDashboard();
+        }
+    }
+
+    function triggerToastNotificationFeedback(icon, msg) {
+        const banner = document.getElementById('globalToastFeedbackNotificationBanner');
+        document.getElementById('globalToastIconPlaceholder').innerText = icon;
+        document.getElementById('globalToastMessagePlaceholder').innerText = msg;
+        banner.classList.add('active');
+        setTimeout(() => banner.classList.remove('active'), 2500);
+    }
+
+    // --- VIEW CONTROLLER SWITCH ROUTERS ---
+    function switchActiveAppView(targetPanelKey) {
+        document.querySelectorAll('.nav-tab-item').forEach(btn => {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('.view-panel').forEach(panel => panel.classList.remove('active'));
+
+        const capitalizedKey = targetPanelKey.charAt(0).toUpperCase() + targetPanelKey.slice(1);
+        document.getElementById(`tabButton${capitalizedKey}`).classList.add('active');
+        document.getElementById(`tabButton${capitalizedKey}`).setAttribute('aria-selected', 'true');
+        document.getElementById(`viewPanel${capitalizedKey}`).classList.add('active');
+
+        if (targetPanelKey === 'tracker') {
+            renderUnifiedCalendarEcosystemGrid();
+            renderComprehensiveHistoryTimelineLedger();
+        } else if (targetPanelKey === 'tasks') {
+            renderWorkspaceTaskListElements();
+        } else if (targetPanelKey === 'analytics') {
+            renderIntelligentAnalyticsSuiteDashboard();
+        }
+    }
+
+    // --- FORM RENDER MATRICES & COMPONENT GENERATION ---
+    function renderInteractiveMoodSelectionGrid() {
+        const elementGrid = document.getElementById('moodInteractiveSelectorGrid');
+        elementGrid.innerHTML = Object.keys(MOOD_DATA).map(key => `
+            <button type="button" class="mood-node-btn" onclick="selectLoggerActiveMoodTarget('${key}')" id="moodNodeBtn-${key}">
+                <span>${MOOD_DATA[key].emoji}</span>
+                <small>${key}</small>
+            </button>
+        `).join('');
+    }
+
+    function selectLoggerActiveMoodTarget(moodKey) {
+        activeSelectedMoodKey = moodKey;
+        document.querySelectorAll('.mood-node-btn').forEach(btn => btn.classList.remove('selected'));
+        if (moodKey) {
+            document.getElementById(`moodNodeBtn-${moodKey}`).classList.add('selected');
+        }
+    }
+
+    function renderContextualTagSelectorPools() {
+        const poolElement = document.getElementById('loggerFormTagPool');
+        poolElement.innerHTML = CONTEXTUAL_TAGS_REGISTRY.map(tag => `
+            <span class="context-tag-pill" id="contextTagPill-${tag.replace(/\s+/g, '')}" onclick="toggleContextualTagSelectionState('${tag}')">${tag}</span>
+        `).join('');
+    }
+
+    function toggleContextualTagSelectionState(tagValue) {
+        const index = activeSelectedTagsArray.indexOf(tagValue);
+        const elementId = `contextTagPill-${tagValue.replace(/\s+/g, '')}`;
+        if (index > -1) {
+            activeSelectedTagsArray.splice(index, 1);
+            document.getElementById(elementId).classList.remove('selected');
+        } else {
+            activeSelectedTagsArray.push(tagValue);
+            document.getElementById(elementId).classList.add('selected');
+        }
+    }
+
+    // --- WEATHER SYNC OPEN-METEO MODULE API ---
+    function initializeRegionalWeatherSync() {
+        const bar = document.getElementById('weatherStatusBar');
+        if (!navigator.geolocation) {
+            bar.innerText = "Weather location context unmapped.";
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,weather_code&timezone=auto`;
+                    const res = await fetch(url);
+                    const parsed = await res.json();
+                    if (parsed && parsed.current) {
+                        const wc = parsed.current.weather_code;
+                        let resolvedCondition = "Cloudy";
+                        if (wc <= 3) resolvedCondition = "Sunny";
+                        else if ([45, 48].includes(wc)) resolvedCondition = "Foggy";
+                        else if (wc >= 51) resolvedCondition = "Rainy";
+
+                        runtimeFetchedWeatherObject = {
+                            temp: Math.round(parsed.current.temperature_2m),
+                            condition: resolvedCondition
+                        };
+                        bar.innerHTML = `🌤️ Ambient Vector: <strong>${runtimeFetchedWeatherObject.temp}°C, ${runtimeFetchedWeatherObject.condition}</strong>`;
+                    }
+                } catch (err) {
+                    bar.innerText = "Atmospheric context offline.";
+                }
+            },
+            () => { bar.innerText = "Location permission unmapped."; }
+        );
+    }
+
+    // --- REFRESH FRAMEWORK COORDINATORS ---
+    function refreshGlobalEcosystemViews() {
+        renderUnifiedCalendarEcosystemGrid();
+        renderComprehensiveHistoryTimelineLedger();
+    }
+
+    // --- MOOD ENTRY TRANSACTION LOGIC PIPELINES ---
+    function commitLoggedMoodEntry() {
+        const targetDate = document.getElementById('loggerEntryDate').value;
+        const noteText = document.getElementById('loggerEntryNote').value.trim();
+
+        if (!activeSelectedMoodKey) {
+            return alert("Please map an operational emotional descriptor node baseline.");
+        }
+
+        const newLogEntryObject = {
+            id: Date.now(),
+            date: targetDate,
+            mood: activeSelectedMoodKey,
+            note: noteText,
+            tags: [...activeSelectedTagsArray],
+            weather: runtimeFetchedWeatherObject ? { ...runtimeFetchedWeatherObject } : null
+        };
+
+        entries.push(newLogEntryObject);
+        localStorage.setItem('moodEntries', JSON.stringify(entries));
+        
+        // Reset local logger variables
+        selectLoggerActiveMoodTarget(null);
+        activeSelectedTagsArray = [];
+        document.querySelectorAll('.context-tag-pill').forEach(pill => pill.classList.remove('selected'));
+        document.getElementById('loggerEntryNote').value = '';
+        
+        triggerToastNotificationFeedback('💾', 'Psychological valence entry committed securely.');
+        refreshGlobalEcosystemViews();
+    }
+
+    function removeLoggedMoodEntryItem(uniqueId) {
+        if (confirm("Permanently purge this metric index from storage ledger?")) {
+            entries = entries.filter(item => item.id !== uniqueId);
+            localStorage.setItem('moodEntries', JSON.stringify(entries));
+            triggerToastNotificationFeedback('🗑️', 'Ledger index deleted.');
+            refreshGlobalEcosystemViews();
+            dismissFocusedInspectionCard();
+        }
+    }
+
+    // --- INTERACTIVE CALENDAR ENGINE IMPLEMENTATIONS ---
+    function adjustViewCalendarMonth(directionOffset) {
+        activeCalendarViewingDateObj.setMonth(activeCalendarViewingDateObj.getMonth() + directionOffset);
+        renderUnifiedCalendarEcosystemGrid();
+    }
+
+    function renderUnifiedCalendarEcosystemGrid() {
+        const grid = document.getElementById('interactiveCalendarMatrixGrid');
+        const label = document.getElementById('calendarMonthStringLabel');
+        grid.innerHTML = '';
+
+        const year = activeCalendarViewingDateObj.getFullYear();
+        const month = activeCalendarViewingDateObj.getMonth();
+        
+        label.innerText = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(activeCalendarViewingDateObj);
+
+        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+            grid.innerHTML += `<div class="calendar-weekday-heading">${day}</div>`;
+        });
+
+        const firstWeekdayIndex = new Date(year, month, 1).getDay();
+        const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let pad = 0; pad < firstWeekdayIndex; pad++) {
+            grid.innerHTML += `<div class="calendar-date-cell empty-node"></div>`;
+        }
+
+        const currentSystemDateString = new Date().toISOString().split('T')[0];
+
+        for (let dateCursor = 1; dateCursor <= totalDaysInMonth; dateCursor++) {
+            const dateStringISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(dateCursor).padStart(2, '0')}`;
+            const targetedDayEntries = entries.filter(e => e.date === dateStringISO);
+            const activeUnfinishedTasksCount = tasks.filter(t => t.dueDate === dateStringISO && !t.completed).length;
+            const isTodayMarker = currentSystemDateString === dateStringISO;
+
+            const elementCellNode = document.createElement('div');
+            elementCellNode.className = `calendar-date-cell ${isTodayMarker ? 'today' : ''}`;
+            
+            // Build visual metrics indicator block inside cell
+            let backgroundIntensityStyle = "";
+            if (targetedDayEntries.length > 0) {
+                const combinedScoreSum = targetedDayEntries.reduce((sum, curr) => sum + MOOD_DATA[curr.mood].score, 0);
+                const averageScoreWeight = combinedScoreSum / targetedDayEntries.length;
+                if (averageScoreWeight > 0) {
+                    backgroundIntensityStyle = `background-color: rgba(16, 185, 129, ${0.1 + (averageScoreWeight / 2) * 0.4});`;
+                } else if (averageScoreWeight < 0) {
+                    backgroundIntensityStyle = `background-color: rgba(239, 68, 68, ${0.1 + (Math.abs(averageScoreWeight) / 2) * 0.4});`;
+                } else {
+                    backgroundIntensityStyle = `background-color: var(--primary-light);`;
+                }
+            }
+            if (backgroundIntensityStyle) elementCellNode.style = backgroundIntensityStyle;
+
+            elementCellNode.innerHTML = `
+                <span class="cell-number">${dateCursor}</span>
+                <div class="cell-content-meta">
+                    ${targetedDayEntries.map(e => `<span>${MOOD_DATA[e.mood].emoji}</span>`).join('')}
+                </div>
+                ${activeUnfinishedTasksCount ? `<div class="calendar-cell-task-badge" title="${activeUnfinishedTasksCount} incomplete task parameters scheduled"></div>` : ''}
+            `;
+
+            elementCellNode.onclick = () => triggerDateCellFocusInspection(dateStringISO);
+            grid.appendChild(elementCellNode);
+        }
+    }
+
+    // --- DATE CELL FOCUS INSPECTION HANDLERS ---
+    function triggerDateCellFocusInspection(dateStrISO) {
+        const card = document.getElementById('focusedDayInspectionCard');
+        const box = document.getElementById('focusedInspectionContentBox');
+        document.getElementById('focusedInspectionDateTitle').innerText = `Ecosystem Footprint: ${dateStrISO}`;
+
+        const filteredEntries = entries.filter(e => e.date === dateStrISO);
+        const filteredTasks = tasks.filter(t => t.dueDate === dateStrISO);
+
+        let synthesizedHtml = `<div class="dashboard-grid" style="margin-bottom:0; gap:16px;"><div><h4 style="font-size:0.9rem; margin-bottom:8px; color:var(--text-muted);">Psychological Snapshots</h4>`;
+        
+        if (filteredEntries.length > 0) {
+            synthesizedHtml += filteredEntries.map(e => `
+                <div style="padding:10px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--card-bg); margin-bottom:8px;">
+                    <div style="display:flex; justify-content:between; align-items:center; margin-bottom:4px;">
+                        <strong>${MOOD_DATA[e.mood].emoji} ${e.mood.toUpperCase()}</strong>
+                        <button type="button" style="color:var(--angry); background:none; border:none; cursor:pointer; font-size:0.8rem; margin-left:auto;" onclick="removeLoggedMoodEntryItem(${e.id})">Purge</button>
+                    </div>
+                    <p style="font-size:0.85rem; margin-bottom:6px;">${e.note || '<i>No descriptive note mapped.</i>'}</p>
+                    <div class="history-pills-row">
+                        ${(e.tags || []).map(t => `<span class="history-badge-item">${t}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            synthesizedHtml += `<div class="empty-state-placeholder"><span>📭</span><p>No emotional records for this timestamp.</p></div>`;
+        }
+
+        synthesizedHtml += `</div><div><h4 style="font-size:0.9rem; margin-bottom:8px; color:var(--text-muted);">Scheduled Deliverables</h4>`;
+        
+        if (filteredTasks.length > 0) {
+            synthesizedHtml += filteredTasks.map(t => `
+                <div class="workspace-task-item ${t.completed ? 'completed' : t.priority.toLowerCase()}" style="padding:8px 12px; margin-bottom:6px;">
+                    <div class="task-meta-info">
+                        <h5 style="font-size:0.85rem;">${t.title}</h5>
+                        <span>Priority: ${t.priority}</span>
+                    </div>
+                    <strong>${t.completed ? '✅' : '⏳'}</strong>
+                </div>
+            `).join('');
+        } else {
+            synthesizedHtml += `<div class="empty-state-placeholder"><span>📋</span><p>No task entries structured for execution.</p></div>`;
+        }
+
+        synthesizedHtml += `</div></div>`;
+        box.innerHTML = synthesizedHtml;
+        card.style.display = 'block';
+        card.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function dismissFocusedInspectionCard() {
+        document.getElementById('focusedDayInspectionCard').style.display = 'none';
+    }
+
+    // --- LEDGER HISTORY QUERY & RENDER FILTERS ---
+    function executeHistoryFilteringSearch() {
+        renderComprehensiveHistoryTimelineLedger();
+    }
+
+    function renderComprehensiveHistoryTimelineLedger() {
+        const container = document.getElementById('historyLedgerTimelineContainer');
+        const query = document.getElementById('historyNaturalLanguageSearchInput').value.toLowerCase().trim();
+        const sortedEntries = [...entries].sort((a, b) => b.id - a.id);
+
+        const filtered = sortedEntries.filter(e => {
+            if (!query) return true;
+            const matchesMood = e.mood.toLowerCase().includes(query);
+            const matchesNote = e.note && e.note.toLowerCase().includes(query);
+            const matchesTags = e.tags && e.tags.some(t => t.toLowerCase().includes(query));
+            const matchesWeather = e.weather && e.weather.condition.toLowerCase().includes(query);
+            return matchesMood || matchesNote || matchesTags || matchesWeather;
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state-placeholder">
+                    <span>🔍</span>
+                    <p>No matching matrix footprints detected in history database.</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = filtered.map(e => {
+            let weatherBadge = '';
+            if (e.weather) {
+                const icon = e.weather.condition === 'Sunny' ? '☀️' : e.weather.condition === 'Rainy' ? '🌧️' : '☁️';
+                weatherBadge = `<span class="history-weather-pill">${icon} ${e.weather.temp}°C</span>`;
+            }
+
+            return `
+                <div class="history-timeline-card">
+                    <div class="history-date-stamp">${e.date}</div>
+                    <div class="history-emoji-frame">${MOOD_DATA[e.mood].emoji}</div>
+                    <div class="history-details-block">
+                        <div class="history-details-text">${e.note || '<span style="opacity:0.4;">No qualitative notes appended.</span>'}</div>
+                        <div class="history-pills-row">
+                            <span class="history-badge-item" style="text-transform:capitalize; background:var(--primary-light); color:var(--primary);">${e.mood}</span>
+                            ${(e.tags || []).map(t => `<span class="history-badge-item">${t}</span>`).join('')}
+                            ${weatherBadge}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-icon" style="border:none; color:var(--angry);" onclick="removeLoggedMoodEntryItem(${e.id})" title="Purge Record">🗑️</button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // --- TASK WORKSPACE FILTER MODULE LOGIC ---
+    function switchActiveTaskFilter(targetFilterKey) {
+        activeWorkspaceTaskFilterString = targetFilterKey;
+        document.querySelectorAll('.tabs-sub-row .sub-tab-node').forEach(node => node.classList.remove('active'));
+        document.getElementById(`subtab-${targetFilterKey}`).classList.add('active');
+        renderWorkspaceTaskListElements();
+    }
+
+    function commitTaskFormSubmission() {
+        const title = document.getElementById('taskWorkspaceTitleInput').value.trim();
+        const dueDate = document.getElementById('taskWorkspaceDueDateInput').value;
+        const priority = document.getElementById('taskWorkspacePrioritySelect').value;
+        const editingTargetId = document.getElementById('taskFormEditingTargetId').value;
+
+        if (!title) return alert("Task clarification parameters must remain populated.");
+
+        if (editingTargetId) {
+            tasks = tasks.map(t => t.id == editingTargetId ? { ...t, title, dueDate, priority } : t);
+            triggerToastNotificationFeedback('✏️', 'Task matrix properties updated successfully.');
+        } else {
+            const newTaskNode = {
+                id: Date.now(),
+                title,
+                dueDate,
+                priority,
+                completed: false,
+                completedDate: null,
+                order: tasks.length
+            };
+            tasks.push(newTaskNode);
+            triggerToastNotificationFeedback('📅', 'Action item appended to execution workspace queue.');
+        }
+
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        resetTaskWorkspaceFormState();
+        renderWorkspaceTaskListElements();
+    }
+
+    function resetTaskWorkspaceFormState() {
+        document.getElementById('taskWorkspaceFormTitle').innerText = "Instantiate Action Item";
+        document.getElementById('taskFormEditingTargetId').value = "";
+        document.getElementById('taskWorkspaceTitleInput').value = "";
+        document.getElementById('taskWorkspaceFormSubmitBtn').innerText = "Schedule Task Item";
+        document.getElementById('taskWorkspaceFormCancelBtn').style.display = "none";
+        synchronizeDefaultFormInputDates();
+    }
+
+    function triggerTaskWorkspaceEditFlow(id) {
+        const targetedTask = tasks.find(t => t.id == id);
+        if (!targetedTask) return;
+
+        document.getElementById('taskWorkspaceFormTitle').innerText = "Modify Task Framework Parameters";
+        document.getElementById('taskFormEditingTargetId').value = targetedTask.id;
+        document.getElementById('taskWorkspaceTitleInput').value = targetedTask.title;
+        document.getElementById('taskWorkspaceDueDateInput').value = targetedTask.dueDate;
+        document.getElementById('taskWorkspacePrioritySelect').value = targetedTask.priority;
+        
+        document.getElementById('taskWorkspaceFormSubmitBtn').innerText = "Apply Structure Updates";
+        document.getElementById('taskWorkspaceFormCancelBtn').style.display = "inline-flex";
+    }
+
+    function toggleTaskWorkspaceItemCompletionState(id) {
+        const currentISOString = new Date().toISOString().split('T')[0];
+        tasks = tasks.map(t => {
+            if (t.id == id) {
+                const nextState = !t.completed;
+                return { ...t, completed: nextState, completedDate: nextState ? currentISOString : null };
+            }
+            return t;
+        });
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        triggerToastNotificationFeedback('✅', 'Execution state matrix mutated.');
+        renderWorkspaceTaskListElements();
+    }
+
+    function purgeTaskWorkspaceItem(id) {
+        if (confirm("Expunge targeted deliverable instance from tracking workspace?")) {
+            tasks = tasks.filter(t => t.id != id);
+            localStorage.setItem('todoTasks', JSON.stringify(tasks));
+            triggerToastNotificationFeedback('🗑️', 'Deliverable cleared from register.');
+            renderWorkspaceTaskListElements();
+        }
+    }
+
+    function repositionTaskOrderMatrixIndex(id, directionOffset) {
+        const activeIndex = tasks.findIndex(t => t.id == id);
+        if (activeIndex === -1) return;
+
+        const prospectiveSwapIndex = activeIndex + directionOffset;
+        if (prospectiveSwapIndex < 0 || prospectiveSwapIndex >= tasks.length) return;
+
+        const transitoryHolder = tasks[activeIndex];
+        tasks[activeIndex] = tasks[prospectiveSwapIndex];
+        tasks[prospectiveSwapIndex] = transitoryHolder;
+
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        renderWorkspaceTaskListElements();
+    }
+
+    function renderWorkspaceTaskListElements() {
+        const container = document.getElementById('taskWorkspaceListContainer');
+        const todayISOString = new Date().toISOString().split('T')[0];
+
+        // Recalculate metrics strip displays widgets data points
+        const doneTodayCount = tasks.filter(t => t.completed && t.completedDate === todayISOString).length;
+        
+        const timestampMs = new Date().getTime();
+        const doneThisWeekCount = tasks.filter(t => {
+            if (!t.completed || !t.completedDate) return false;
+            let delta = timestampMs - new Date(t.completedDate + "T00:00:00").getTime();
+            return delta <= (7 * 24 * 60 * 60 * 1000);
+        }).length;
+
+        const globalCompletionRatePercent = tasks.length ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0;
+
+        // Process focus streak calculation logic loop sequence
+        let dynamicFocusStreak = 0;
+        const uniqueOrderedCompletedDates = [...new Set(tasks.filter(t => t.completed && t.completedDate).map(t => t.completedDate))].sort((a, b) => new Date(b) - new Date(a));
+        
+        if (uniqueOrderedCompletedDates.length > 0) {
+            let evaluatorDay = new Date(todayISOString + "T00:00:00");
+            let deltaDaysFromLastDone = (evaluatorDay - new Date(uniqueOrderedCompletedDates[0] + "T00:00:00")) / (1000 * 60 * 60 * 24);
+            if (deltaDaysFromLastDone <= 1) {
+                dynamicFocusStreak = 1;
+                for (let k = 1; k < uniqueOrderedCompletedDates.length; k++) {
+                    let prevDay = new Date(uniqueOrderedCompletedDates[k-1] + "T00:00:00");
+                    let currentDay = new Date(uniqueOrderedCompletedDates[k] + "T00:00:00");
+                    if ((prevDay - currentDay) / (1000 * 60 * 60 * 24) === 1) {
+                        dynamicFocusStreak++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+
+        document.getElementById('widgetCountCompletedToday').innerText = doneTodayCount;
+        document.getElementById('widgetCountCompletedWeek').innerText = doneThisWeekCount;
+        document.getElementById('widgetPercentCompletionRate').innerText = `${globalCompletionRatePercent}%`;
+        document.getElementById('widgetProductivityStreakCount').innerText = `${dynamicFocusStreak}d`;
+
+        // Apply dynamic filtering routes logic arrays
+        let arrayBucket = [];
+        if (activeWorkspaceTaskFilterString === 'today') arrayBucket = tasks.filter(t => !t.completed && t.dueDate === todayISOString);
+        else if (activeWorkspaceTaskFilterString === 'upcoming') arrayBucket = tasks.filter(t => !t.completed && t.dueDate > todayISOString);
+        else if (activeWorkspaceTaskFilterString === 'overdue') arrayBucket = tasks.filter(t => !t.completed && t.dueDate < todayISOString);
+        else arrayBucket = tasks.filter(t => t.completed);
+
+        if (arrayBucket.length === 0) {
+            container.innerHTML = `<div class="empty-state-placeholder"><span>🎐</span><p>No deliverables match active workspace view parameters.</p></div>`;
+            return;
+        }
+
+        container.innerHTML = arrayBucket.map(t => `
+            <div class="workspace-task-item ${t.completed ? 'completed' : t.priority.toLowerCase()}">
+                <div style="display:flex; align-items:center; gap:12px; flex-grow:1;">
+                    <input type="checkbox" ${t.completed ? 'checked' : ''} onclick="toggleTaskWorkspaceItemCompletionState(${t.id})" aria-label="Toggle task completion">
+                    <div class="task-meta-info">
+                        <h5>${t.title}</h5>
+                        <span>Target Window: ${t.dueDate} | Impact: ${t.priority}</span>
+                    </div>
+                </div>
+                <div class="task-control-actions">
+                    <button class="btn-icon" style="width:30px; height:30px; font-size:0.8rem;" onclick="repositionTaskOrderMatrixIndex(${t.id}, -1)" title="Raise Priority Hierarchy">🔼</button>
+                    <button class="btn-icon" style="width:30px; height:30px; font-size:0.8rem;" onclick="repositionTaskOrderMatrixIndex(${t.id}, 1)" title="Lower Priority Hierarchy">🔽</button>
+                    ${!t.completed ? `<button class="btn-icon" style="width:30px; height:30px; font-size:0.8rem;" onclick="triggerTaskWorkspaceEditFlow(${t.id})" title="Edit Context">✏️</button>` : ''}
+                    <button class="btn-icon" style="width:30px; height:30px; font-size:0.8rem; color:var(--angry);" onclick="purgeTaskWorkspaceItem(${t.id})" title="Expunge Node">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // --- INTEGRATED STRUCTURAL ANALYTICS GENERATOR ---
+    function renderIntelligentAnalyticsSuiteDashboard() {
+        const dynamicListContainer = document.getElementById('analyticsDynamicInsightsUnorderedList');
+        
+        if (entries.length === 0) {
+            dynamicListContainer.innerHTML = `<div class="empty-state-placeholder"><span>📈</span><p>Log initial data sequences to populate behavioral synthesis insights dashboards.</p></div>`;
+            return;
+        }
+
+        const isDarkModeEnabled = document.body.classList.contains('dark');
+        const gridColorToken = isDarkModeEnabled ? '#334155' : '#e2e8f0';
+        const labelColorToken = isDarkModeEnabled ? '#94a3b8' : '#64748b';
+
+        // Synthesis calculations framework loop maps
+        const structuredTimelineDayObjectMap = {};
+        entries.forEach(e => {
+            if (!structuredTimelineDayObjectMap[e.date]) {
+                structuredTimelineDayObjectMap[e.date] = { moodScore: MOOD_DATA[e.mood].score, taskLoadPointsValue: 0 };
+            }
+        });
+        tasks.forEach(t => {
+            if (t.completed && t.completedDate && structuredTimelineDayObjectMap[t.completedDate]) {
+                const modifierPointsWeight = t.priority === 'High' ? 3 : t.priority === 'Medium' ? 2 : 1;
+                structuredTimelineDayObjectMap[t.completedDate].taskLoadPointsValue += modifierPointsWeight;
+            }
+        });
+
+        const sortedTimelineDateKeysArray = Object.keys(structuredTimelineDayObjectMap).sort().slice(-14);
+
+        // Chart Instance 1 Initialization
+        if (chartInstanceTrendPointer) chartInstanceTrendPointer.destroy();
+        chartInstanceTrendPointer = new Chart(document.getElementById('canvasTrendChartElement').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: sortedTimelineDateKeysArray.map(k => k.substring(5)),
+                datasets: [
+                    { label: 'Psychological Valence', data: sortedTimelineDateKeysArray.map(k => structuredTimelineDayObjectMap[k].moodScore), borderColor: '#6366f1', tension: 0.2, fill: false },
+                    { label: 'Focus Production Yield', data: sortedTimelineDateKeysArray.map(k => structuredTimelineDayObjectMap[k].taskLoadPointsValue), borderColor: '#10b981', tension: 0.2, fill: false }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: gridColorToken }, ticks: { color: labelColorToken } },
+                    x: { grid: { color: gridColorToken }, ticks: { color: labelColorToken } }
+                }
+            }
+        });
+
+        // Chart Instance 2 Weekdays Analysis
+        const aggregatorWeekdaySums = Array(7).fill(0);
+        const aggregatorWeekdayCounts = Array(7).fill(0);
+        entries.forEach(e => {
+            let index = new Date(e.date + "T00:00:00").getDay();
+            aggregatorWeekdaySums[index] += MOOD_DATA[e.mood].score;
+            aggregatorWeekdayCounts[index]++;
+        });
+        const computedWeekdayAveragesArray = aggregatorWeekdaySums.map((sum, i) => aggregatorWeekdayCounts[i] ? sum / aggregatorWeekdayCounts[i] : 0);
+
+        if (chartInstanceWeekdayPointer) chartInstanceWeekdayPointer.destroy();
+        chartInstanceWeekdayPointer = new Chart(document.getElementById('canvasWeekdayChartElement').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                datasets: [{
+                    label: 'Mean Valence Rank Weight',
+                    data: computedWeekdayAveragesArray,
+                    backgroundColor: computedWeekdayAveragesArray.map(val => val >= 0 ? 'rgba(16, 185, 129, 0.65)' : 'rgba(239, 68, 68, 0.65)')
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: gridColorToken }, ticks: { color: labelColorToken }, min: -2, max: 2 },
+                    x: { grid: { color: gridColorToken }, ticks: { color: labelColorToken } }
+                }
+            }
+        });
+
+        // Building GitHub-style calendar grid visualization
+        const heatmapBox = document.getElementById('heatmapInteractiveMatrixBox');
+        const heatmapMonthsRow = document.getElementById('heatmapYearlyTimelineMonthsRow');
+        heatmapBox.innerHTML = ''; heatmapMonthsRow.innerHTML = '';
+
+        const absoluteTotalCellsCount = 53 * 7;
+        const targetAnchorDateObj = new Date();
+        targetAnchorDateObj.setDate(targetAnchorDateObj.getDate() - (absoluteTotalCellsCount - 1));
+
+        for (let weekCursor = 0; weekCursor < 53; weekCursor += 4.4) {
+            let labelTimestampDate = new Date(targetAnchorDateObj.getTime() + (weekCursor * 7 * 24 * 60 * 60 * 1000));
+            heatmapMonthsRow.innerHTML += `<div style="width:46px; font-size:0.7rem; font-weight:700; color:var(--text-muted);">${labelTimestampDate.toLocaleString('en-US', { month: 'short' })}</div>`;
+        }
+
+        for (let cellIndex = 0; cellIndex < absoluteTotalCellsCount; cellIndex++) {
+            let iteratedCellDate = new Date(targetAnchorDateObj.getTime() + (cellIndex * 24 * 60 * 60 * 1000));
+            let formatStringISO = `${iteratedCellDate.getFullYear()}-${String(iteratedCellDate.getMonth()+1).padStart(2,'0')}-${String(iteratedCellDate.getDate()).padStart(2,'0')}`;
+            let dayLogsBucket = entries.filter(e => e.date === formatStringISO);
+
+            let intensityColorFillStyle = "";
+            if (dayLogsBucket.length > 0) {
+                let meanVal = dayLogsBucket.reduce((s, curr) => s + MOOD_DATA[curr.mood].score, 0) / dayLogsBucket.length;
+                intensityColorFillStyle = meanVal > 0 ? `background-color: rgba(16, 185, 129, ${0.2 + (meanVal/2)*0.8});` : meanVal < 0 ? `background-color: rgba(239, 68, 68, ${0.2 + (Math.abs(meanVal)/2)*0.8});` : `background-color: var(--neutral);`;
+            }
+
+            let cellNodeDiv = document.createElement('div');
+            cellNodeDiv.className = "heatmap-node-point";
+            if (intensityColorFillStyle) cellNodeDiv.style = intensityColorFillStyle;
+            cellNodeDiv.title = `${formatStringISO}`;
+            cellNodeDiv.onclick = () => {
+                switchActiveAppView('tracker');
+                triggerDateCellFocusInspection(formatStringISO);
+            };
+            heatmapBox.appendChild(cellNodeDiv);
+        }
+
+        // Generate text-based relational analytics reports models
+        const reportsInsightsTextBucketListArray = [];
+        
+        let highestDayIdx = -1, highValenceValue = -Infinity;
+        computedWeekdayAveragesArray.forEach((mean, idx) => {
+            if (aggregatorWeekdayCounts[idx] > 0 && mean > highValenceValue) { highValenceValue = mean; highestDayIdx = idx; }
+        });
+        const fullDayNamesRegistry = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        if (highestDayIdx !== -1) {
+            reportsInsightsTextBucketListArray.push(`🎉 <strong>Peak Emotional Stability Axis:</strong> Your baseline tracking profile maps optimal psychological valence trends recurring on <strong>${fullDayNamesRegistry[highestDayIdx]}s</strong> (Mean: ${highValenceValue.toFixed(1)}).`);
+        }
+
+        const sunnyDayLogs = entries.filter(e => e.weather && e.weather.condition === 'Sunny');
+        const rainyDayLogs = entries.filter(e => e.weather && e.weather.condition === 'Rainy');
+        if (sunnyDayLogs.length >= 2 && rainyDayLogs.length >= 2) {
+            const meanSunnyValence = sunnyDayLogs.reduce((s, c) => s + MOOD_DATA[c.mood].score, 0) / sunnyDayLogs.length;
+            const meanRainyValence = rainyDayLogs.reduce((s, c) => s + MOOD_DATA[c.mood].score, 0) / rainyDayLogs.length;
+            if (Math.abs(meanSunnyValence - meanRainyValence) >= 0.4) {
+                reportsInsightsTextBucketListArray.push(`🌤️ <strong>Atmospheric Correlation Pattern:</strong> Dynamic analysis reports a verified valence shifts variance matching regional atmospheric weather changes.`);
+            }
+        }
+
+        let taskMoodBoostCounter = 0;
+        entries.forEach(e => {
+            let executedTasksCountOnDay = tasks.filter(t => t.completed && t.completedDate === e.date).length;
+            if (executedTasksCountOnDay >= 2 && MOOD_DATA[e.mood].score >= 1) taskMoodBoostCounter++;
+        });
+        if (taskMoodBoostCounter > 0) {
+            reportsInsightsTextBucketListArray.push(`🎯 <strong>Focus Production Synergy:</strong> A high relational alignment exists between satisfying daily task throughput and high valence mental wellness vectors.`);
+        }
+
+        if (reportsInsightsTextBucketListArray.length === 0) {
+            reportsInsightsTextBucketListArray.push("<li>Continue logging daily entries alongside task targets execution sequences to compile structured mathematical insight matrices reports models.</li>");
+        }
+
+        dynamicListContainer.innerHTML = reportsInsightsTextBucketListArray.map(item => `
+            <li style="padding:10px; border-bottom:1px solid var(--border); font-size:0.95rem; line-height:1.4;">${item}</li>
+        `).join('');
+    }
+
+    // --- CONFIGURATION UTILITY FILE HANDLERS ---
+    function triggerApplicationDataExport() {
+        const bundleExportPackage = { moodEntries: entries, todoTasks: tasks };
+        const blobObjectStream = new Blob([JSON.stringify(bundleExportPackage, null, 2)], { type: 'application/json' });
+        const temporaryLinkNode = document.createElement('a');
+        temporaryLinkNode.href = URL.createObjectURL(blobObjectStream);
+        temporaryLinkNode.download = `aurasphere_backup_snapshot_${Date.now()}.json`;
+        temporaryLinkNode.click();
+        triggerToastNotificationFeedback('📤', 'Environment snapshot JSON exported securely.');
+    }
+
+    function triggerApplicationDataImport(event) {
+        const fileTarget = event.target.files[0];
+        if (!fileTarget) return;
+
+        const readerInstance = new FileReader();
+        readerInstance.onload = function(e) {
+            try {
+                const parsedObjectBundle = JSON.parse(e.target.result);
+                if (parsedObjectBundle.moodEntries || parsedObjectBundle.todoTasks) {
+                    entries = parsedObjectBundle.moodEntries || [];
+                    tasks = parsedObjectBundle.todoTasks || [];
+                    localStorage.setItem('moodEntries', JSON.stringify(entries));
+                    localStorage.setItem('todoTasks', JSON.stringify(tasks));
+                    
+                    triggerToastNotificationFeedback('📥', 'Ecosystem database state synchronized from backup successfully.');
+                    refreshGlobalEcosystemViews();
+                    renderWorkspaceTaskListElements();
+                } else {
+                    alert("Snapshot verification validation failed. Schema corrupted.");
+                }
+            } catch (err) {
+                alert("File parsing error context detected.");
+            }
+        };
+        readerInstance.readAsText(fileTarget);
+    }
+
+    function generateMockSimulationData() {
+        const mockMoodKeys = Object.keys(MOOD_DATA);
+        const currentMsAnchorValue = Date.now();
+        
+        for (let i = 30; i > 0; i--) {
+            let computedPastTimestampStr = new Date(currentMsAnchorValue - (i * 24 * 60 * 60 * 1000)).toISOString().split('T')[0];
+            
+            // Seed entries
+            entries.push({
+                id: Date.now() - (i * 100000),
+                date: computedPastTimestampStr,
+                mood: mockMoodKeys[Math.floor(Math.random() * mockMoodKeys.length)],
+                note: `Automated data array simulated pipeline iteration sequence index node target ${i}.`,
+                tags: [CONTEXTUAL_TAGS_REGISTRY[Math.floor(Math.random() * CONTEXTUAL_TAGS_REGISTRY.length)]],
+                weather: { temp: 18 + Math.floor(Math.random() * 8), condition: Math.random() > 0.4 ? 'Sunny' : 'Rainy' }
+            });
+
+            // Seed tasks
+            if (Math.random() > 0.3) {
+                tasks.push({
+                    id: Date.now() + (i * 100000),
+                    title: `Simulated task execution item ${i}`,
+                    dueDate: computedPastTimestampStr,
+                    priority: Math.random() > 0.6 ? 'High' : 'Medium',
+                    completed: Math.random() > 0.4,
+                    completedDate: computedPastTimestampStr,
+                    order: i
+                });
+            }
+        }
+
+        localStorage.setItem('moodEntries', JSON.stringify(entries));
+        localStorage.setItem('todoTasks', JSON.stringify(tasks));
+        triggerToastNotificationFeedback('🧪', '30 days simulated timeline values written into localStorage data matrix.');
+        refreshGlobalEcosystemViews();
+        renderWorkspaceTaskListElements();
+    }
+
+    function clearAllApplicationDataStore() {
+        if (confirm("🚨 DANGER PROTOCOL: Purge all local environment data permanently? This action cannot be undone.")) {
+            localStorage.clear();
+            entries = [];
+            tasks = [];
+            refreshGlobalEcosystemViews();
+            renderWorkspaceTaskListElements();
+            triggerToastNotificationFeedback('🗑️', 'Ecosystem core clear protocol finalized.');
+        }
+    }
+</script>
+
+</body>
+</html>
